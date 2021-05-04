@@ -21,3 +21,4 @@
 .history/*
 
 /build
+.env
