@@ -1,8 +1,12 @@
 import * as ccxt from "ccxt";
 import { config } from "dotenv";
-import { RsiStrategy } from "./RsiStrategy";
-import { Timeframe } from "./Timeframe";
-import { TradePressure } from "./TradePressure";
+import { getFees, getMarketSymbols, sleep } from "./helper";
+import { RsiStrategy } from "./Strategies/RsiStrategy";
+import { Timeframe } from "./Consts/Timeframe";
+import { TradeDirection } from "./Consts/TradeDirection";
+import { Database } from "./Database";
+import { Trading } from "./Tradeing";
+import { ExchangeAccount } from "./ExchangeAccount";
 
 config();
 
@@ -15,23 +19,26 @@ const exchange = new exchangeClass ({
     'enableRateLimit': true,
 });
 
-
-
-async function run() {
-    await exchange.loadMarkets();
-    const markets: ccxt.Dictionary<ccxt.Market> = exchange.markets;
-    const filteredMarket = Object.entries(markets).filter(([symbol, market]: [string, ccxt.Market]) => market.quote == 'USDT');
-    const rsi: RsiStrategy = new RsiStrategy(exchange, 'MATIC/USDT', Timeframe.m15);
-    const result = await rsi.tradeIndicator();
-    if (result == TradePressure.BUY) {
-        console.log("buy");
-    } else if(result == TradePressure.SELL) {
-        console.log("sell");
-    } else {
-        console.log("hold");
-    }
+async function init() {
+    //const filteredMarket1 = filteredMarket.map(([symbol, market][string, ccxt.Market]) => )
 }
 
-run();
+async function run(runningInstance: number = 0) {
+    //const db: Database = new Database();
+    //const symbols = await getMarketSymbols(exchange);
+    //const portfolio: Portfolio = new Portfolio(exchange, runningInstance, db, Timeframe.m15);
+    //.portfolio.init(symbols);
+    //const account = new ExchangeAccount(exchange);
+     
+
+    const rsi: RsiStrategy = new RsiStrategy(exchange, Timeframe.m15);
+    const strategies = [rsi];
+    const account = new ExchangeAccount(exchange);
+
+    const tradeing: Trading = new Trading(exchange, account, strategies, Timeframe.m15);
+    tradeing.trade();
+}
+
+run(0);
 
 
