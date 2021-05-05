@@ -1,17 +1,19 @@
 import mongoose, {Schema, Document} from "mongoose";
 
-export interface IStoppLossTarget extends Document {
+export interface IOrder extends Document {
     _id: mongoose.Types.ObjectId,
     symbol: string;
+    orderType: string;
     amount: number;
     stop: number;
     target: number;
 }
 
-const StoppLossTargetSchema: Schema = new Schema({
+const OrderSchema: Schema = new Schema({
     _id: {type: Schema.Types.ObjectId, required: true},
     amount: {type: Number, required: true},
     symbol: {type: String, required: true},
+    orderType: {type: String, required: true},
     stop: {type: Number, required: true},
     target: {type: Number, required: true},
 }, 
@@ -19,4 +21,4 @@ const StoppLossTargetSchema: Schema = new Schema({
     timestamps: true
 });
 
-export default mongoose.model<IStoppLossTarget>('StoppLossTarget', StoppLossTargetSchema);
+export default mongoose.model<IOrder>('Order', OrderSchema);

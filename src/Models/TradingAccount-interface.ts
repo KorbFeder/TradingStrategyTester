@@ -3,11 +3,12 @@ export enum OrderStatus {
 };
 
 export interface ITradingAccount {
-    buy(symbol: string, amount: number, pricePerCoin: number): Promise<string>;
-    sellStopLossTarget(symbol: string, amount: number, stop: number, target: number): Promise<{stopId: string | undefined, targetId: string | undefined}>;
+    buy(symbol: string, amount: number, pricePerCoin: number): Promise<string | undefined>;
+    sellStopLossTarget(symbol: string, amount: number, stop: number, target: number): Promise<{stopId: string, targetId: string} | undefined>;
 
-    getBalance(symbol: string): {free: number, used: number} | Promise<{free: number, used: number}>;
-    getOpenOrders(symbol: string): Promise<string[]> | string[];
-    getOrderStatus(id: string, symbol: string): Promise<OrderStatus> | OrderStatus;
+    getBalance(currencyCode: string): Promise<{free: number, used: number}>;
+
+    getOpenOrders(symbol: string): Promise<string[]>;
+    getOrderStatus(id: string, symbol: string): Promise<OrderStatus>;
     getAllOpenOrders(): Promise<string[]>;
 }

@@ -2,16 +2,16 @@ import mongoose, {Schema, Document} from "mongoose";
 
 export interface ICryptoCurrency extends Document {
     _id: mongoose.Types.ObjectId,
-    amount: number,
-    symbol: string,
-    active: boolean
+    free: number,
+    used: number,
+    currencyCode: string,
 }
 
 const CryptoCurrencySchema: Schema = new Schema({
     _id: {type: Schema.Types.ObjectId, required: true},
-    amount: {type: Number, required: true},
-    symbol: {type: String, required: true},
-    active: {type: Boolean, require: true}
+    free: {type: Number, required: true},
+    used: {type: Number, required: true},
+    currencyCode: {type: String, required: true},
 }, 
 {
     timestamps: true

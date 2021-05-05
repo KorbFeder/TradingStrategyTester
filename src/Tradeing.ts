@@ -1,17 +1,14 @@
 import * as ccxt from "ccxt";
-import { sleep, getMarketPrice, getMarketSymbols, filterAndOrder } from "./helper";
+import { sleep, getMarketPrice, getMarketSymbols, filterAndOrder, getBaseCurrency, getFees, orderMarkets } from "./helper";
 import { RsiStrategy } from "./Strategies/RsiStrategy";
 import { Timeframe } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { ITradingAccount, OrderStatus } from "./Models/TradingAccount-interface";
 import { IStrategy } from "./Models/Strategy-interface";
 
-const MAX_POSITIONS = 15;
 
 export class Trading {
-    private positions: number = MAX_POSITIONS;
-    private stopTargetOrders: {orderId: string, symbol: string, stop: number, target: number}[] = [];
-    private candidates: string[] = [];
+    private lastBuyOrders: {orderId: string, symbol: string, stop: number, target: number}[] = [];
     
     constructor(
         private exchange: ccxt.Exchange,
@@ -22,19 +19,19 @@ export class Trading {
     }
 
     public async trade() {
+        const marketSymbols: string[] = await getMarketSymbols(this.exchange);
+
         while(true) {
             // filter for the best potential cryptos to buy
-            this.candidates = await filterAndOrder(new RsiStrategy(this.exchange, this.timeframe), this.exchange);
+            const candidates = await orderMarkets(this.exchange, marketSymbols, new RsiStrategy(this.exchange, this.timeframe));
 
             // use the strategies on the best candidates
-            for(let symbol of this.candidates) {
-                await sleep(this.exchange.rateLimit);
+            for(let symbol of candidates) {
                 const crytpoToBuy =  await this.useStrategies(symbol);
                 if (crytpoToBuy.tradeStatus == TradeDirection.BUY) {
                     const orderId = await this.buy(crytpoToBuy.symbol);
                     if(orderId) {
-                        this.stopTargetOrders.push({orderId, symbol, stop: crytpoToBuy.stop, target: crytpoToBuy.target});
-                        this.positions--;
+                        this.lastBuyOrders.push({orderId, symbol, stop: crytpoToBuy.stop, target: crytpoToBuy.target});
                     }
                 }  
             }
@@ -58,8 +55,10 @@ export class Trading {
         let tradeStatus = TradeDirection.HOLD;
 
         if(confidence >= 0.7) {
+            console.log('indicator for stategy says SELL');
             tradeStatus = TradeDirection.SELL;
-        } else if (confidence <= 0.40){
+        } else if (confidence <= 0.30){
+            console.log('indicator for stategy says BUY');
             tradeStatus = TradeDirection.BUY
         }
 
@@ -84,15 +83,15 @@ export class Trading {
     }
 
     private async stopTarget() {
-        for(let stopTargetOrder of this.stopTargetOrders) {
-            if(await this.tradeAccount.getOrderStatus(stopTargetOrder.orderId, stopTargetOrder.symbol) == OrderStatus.CLOSE) {
-                const amount = (await this.tradeAccount.getBalance(stopTargetOrder.symbol)).free;
-                const {stopId, targetId} = await this.tradeAccount.sellStopLossTarget(stopTargetOrder.symbol, amount, stopTargetOrder.stop, stopTargetOrder.target);
-                if(!stopId && !targetId) {
-                    return;
+        for(let lastBuyOrder of this.lastBuyOrders) {
+            if(await this.tradeAccount.getOrderStatus(lastBuyOrder.orderId, lastBuyOrder.symbol) == OrderStatus.CLOSE) {
+                const amount = (await this.tradeAccount.getBalance(getBaseCurrency(lastBuyOrder.symbol))).free;
+                const ids = await this.tradeAccount.sellStopLossTarget(lastBuyOrder.symbol, amount, lastBuyOrder.stop, lastBuyOrder.target);
+                if(!ids) {
+                    continue;
                 }
                 // remove order
-                this.stopTargetOrders = this.stopTargetOrders.filter((order) => order.orderId != stopTargetOrder.orderId);
+                this.lastBuyOrders = this.lastBuyOrders.filter((order) => order.orderId != lastBuyOrder.orderId);
             }
         }
     }
@@ -100,16 +99,22 @@ export class Trading {
 
 
     async partitionMoney(): Promise<number> {
-        this.positions = MAX_POSITIONS - (await this.tradeAccount.getAllOpenOrders()).length;
+        const MAX_POSITIONS: number = process.env.MAX_POSITIONS ? parseInt(process.env.MAX_POSITIONS) : 5;
+        const positions = MAX_POSITIONS - (await this.tradeAccount.getAllOpenOrders()).length;
+        if(positions <= 0) {
+            return 0;
+        }
 
-        const balance: {free: number, used: number} = await this.tradeAccount.getBalance('USDT');
-        const partitionedMoney: number = balance.free / this.positions;
-        this.positions--;
+        const quoteCurrency = process.env.QUOTE_CURRENCY ? process.env.QUOTE_CURRENCY : 'USDT';
+        const balance: {free: number, used: number} = await this.tradeAccount.getBalance(quoteCurrency);
+        const partitionedMoney: number = balance.free / positions;
+        // todo -> maybe differen for other platforms with different fees types
+        const fee = 0.001 
         
         if(balance.free > 0 && balance.free < partitionedMoney) {
             return balance.free;
         }
         
-        return partitionedMoney;
+        return partitionedMoney - partitionedMoney * fee;
     }
 }

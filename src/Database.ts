@@ -1,29 +1,46 @@
+import { Exchange } from "ccxt";
 import mongoose from "mongoose";
 import { TradeDirection } from "./Consts/TradeDirection";
-import BalanceModel, { IBalance } from "./Models/Balance-model";
+import { getBaseCurrency, getMarketSymbols } from "./helper";
 import CryptoCurrencyModel, {ICryptoCurrency} from "./Models/CryptoCurrency-model";
 import LoggingModel, { ILogging } from "./Models/Logging-model";
-import StoppLossTargetModel, { IStoppLossTarget } from "./Models/StoppLossTarget-model";
+import OrderModel, { IOrder } from "./Models/Order-model";
 
+const STARTING_MONEY = 100000;
 
 export class Database {
     constructor() {}
 
-    async connect() {
+    async connect(exchange: Exchange) {
         await mongoose.connect(process.env.MONGODB as string, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             useFindAndModify: false,
             useCreateIndex: true
         });
+        await CryptoCurrencyModel.create();
+        await OrderModel.create();
+
+        const cryptos = await this.loadCryptos();
+        if(cryptos.length == 0) {
+            const symbols = await getMarketSymbols(exchange);
+            for(let symbol of symbols) {
+                const base = getBaseCurrency(symbol);
+                
+                this.saveCrypto(base, 0, 0);
+            }
+            const quoteCrypeo = process.env.QUOTE_CURRENCY ? process.env.QUOTE_CURRENCY : 'USDT';
+            this.saveCrypto(quoteCrypeo, STARTING_MONEY, 0);
+        }
    }
 
-    async saveCrypto(symbol: string, amount: number): Promise<ICryptoCurrency> {
+    async saveCrypto(currencyCode: string, free: number, used: number): Promise<ICryptoCurrency> {
         const crypto = new CryptoCurrencyModel({       
             _id: new mongoose.Types.ObjectId(),
-            symbol,
-            amount,
-            active: true
+            free,
+            used,
+            currencyCode,
+
         });
         
         return await crypto.save();
@@ -33,9 +50,8 @@ export class Database {
         return await CryptoCurrencyModel.find();
     } 
 
-    async updateCrypto(_id: mongoose.Types.ObjectId, crypto: ICryptoCurrency) {
-        crypto.active = true;
-        return await CryptoCurrencyModel.updateOne({_id}, crypto);
+    async updateCrypto(crypto: ICryptoCurrency) {
+        return await CryptoCurrencyModel.updateOne({_id: crypto._id}, crypto);
     }
 
     async removeCrypto(_id: mongoose.Types.ObjectId) {
@@ -43,39 +59,24 @@ export class Database {
     }
 
 
-    async loadBalances(): Promise<IBalance[]> {
-        return await BalanceModel.find();
+    async loadOrder(): Promise<IOrder[]> {
+        return await OrderModel.find();
     }
 
-    async saveBalance(usdt: number): Promise<IBalance> {
-        const balance = new BalanceModel({
-            _id: new mongoose.Types.ObjectId(),
-            usdt
-        });
-        return await balance.save();
-    }
-
-    async updateBalance(_id: mongoose.Types.ObjectId, balance: IBalance) {
-        return await BalanceModel.updateOne({_id}, balance);
-    }
-
-    async loadSaveStoppLimit(): Promise<IStoppLossTarget[]> {
-        return await StoppLossTargetModel.find();
-    }
-
-    async saveStoppLimit(symbol: string, amount: number, stop: number, target: number) {
-        const stoppLimit = new StoppLossTargetModel({
+    async saveOrder(orderType: string, symbol: string, amount: number, stop: number, target: number) {
+        const order = new OrderModel({
             _id: new mongoose.Types.ObjectId(),
             symbol,
             amount,
             stop, 
-            target
+            target,
+            orderType
         });
-        return stoppLimit.save();
+        return order.save();
     }
 
-    async removeStopLimit(_id: mongoose.Types.ObjectId) {
-        return await StoppLossTargetModel.remove({_id});
+    async removeOrder(_id: mongoose.Types.ObjectId) {
+        return await OrderModel.remove({_id});
     }
 
     async logTrade(symbol: string, usdt: number, amount: number, tradeDirection: TradeDirection) {

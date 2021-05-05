@@ -27,23 +27,23 @@ export class ExchangeAccount implements ITradingAccount {
         return order.id;
     }
 
-    async sellStopLossTarget(symbol: string, amount: number, stop: number, target: number): Promise<{stopId: string | undefined, targetId: string | undefined}> {
+    async sellStopLossTarget(symbol: string, amount: number, stop: number, target: number): Promise<{stopId: string, targetId: string} | undefined> {
         console.log('buying: ', symbol, ' amount: ', amount, ' of price: ', stop, target);
         const targetOrder = await this.exchange.createOrder(symbol, 'limit', 'sell', amount, target);
         const stopOrder = await this.exchange.createOrder(symbol, 'limit', 'buy', amount, stop);
         return {stopId: stopOrder.id, targetId: targetOrder.id};
     }
 
-    async getBalance(symbol: string): Promise<{free: number, used: number}> {
+    async getBalance(currencyCode: string): Promise<{free: number, used: number}> {
         const balance: ccxt.Balances = await this.exchange.fetchBalance();
-        if(balance[symbol]) {
-            return {free: balance[symbol].free, used: balance[symbol].used};
+        if(balance[currencyCode]) {
+            return {free: balance[currencyCode].free, used: balance[currencyCode].used};
         }
         return {free: -1, used: -1};
     }
 
     async getAllOpenOrders(): Promise<string[]> {
-        const symbols = await filterAndOrder(new RsiStrategy(this.exchange, Timeframe.m15), this.exchange);
+        const symbols = await filterAndOrder(this.exchange, new RsiStrategy(this.exchange, Timeframe.m15));
         const orders: ccxt.Order[] = [];
 
         for(let symbol of symbols) {
