@@ -1,7 +1,7 @@
 import * as ccxt from "ccxt";
-import { strict } from "node:assert";
 import { ATR } from "technicalindicators";
 import { Timeframe } from "./Consts/Timeframe";
+import { TradeDirection } from "./Consts/TradeDirection";
 import { IStrategy } from "./Models/Strategy-interface";
 
 export function sleep(ms: number) {
@@ -10,13 +10,28 @@ export function sleep(ms: number) {
 
 // function that returns all market symbols that are traded against usdt
 export async function getMarketSymbols(exchange: ccxt.Exchange): Promise<string[]> {
-    await exchange.loadMarkets();
-    const market = Object.entries(exchange.markets);
-    const topCryptos: number = process.env.TOP_CRYPTOS ? parseInt(process.env.TOP_CRYPTOS) : market.length;
-    return market 
-        .filter(([_, market]: [string, ccxt.Market]) => market.quote == 'USDT' && market.active && !market.info.permissions.includes('LEVERAGED'))
-        .map(([symbol, _]: [string, ccxt.Market]) => symbol)
-        .slice(0, topCryptos);
+    if(process.env.GET_SYMBOLS_FROM_EXCHANGE == '1') {
+        await exchange.loadMarkets();
+        const market = Object.entries(exchange.markets);
+        const topCryptos: number = process.env.TOP_CRYPTOS ? parseInt(process.env.TOP_CRYPTOS) : market.length;
+        if(exchange.id == 'ftx') {
+            return market 
+            .filter(([_, market]: [string, ccxt.Market]) => market.type == 'future' && market.id.includes('PERP'))
+            //.filter(([_, market]: [string, ccxt.Market]) => market.quote == 'USDT')
+            .map(([symbol, _]: [string, ccxt.Market]) => symbol)
+            .slice(0, topCryptos);
+        }
+        return market 
+            //.filter(([_, market]: [string, ccxt.Market]) => market.type == 'future' && market.id.includes('PERP'))
+            .filter(([_, market]: [string, ccxt.Market]) => market.quote == 'USDT')
+            .map(([symbol, _]: [string, ccxt.Market]) => symbol)
+            .slice(0, topCryptos);
+    } else {
+        return ['BTC-PERP', 'ETH-PERP', 'MATIC-PERP', 'SOL-PERP', 'DOT-PERP', 'LINK-PERP', 'BNB-PERP', 'ADA-PERP', 
+            'LTC-PERP', 'DOGE-PERP', 'FTT-PERP', 'RUNE-PERP', 'SUSHI-PERP', 'AAVE-PERP', 'XRP-PERP', 'UNI-PERP', 
+            'BCH-PERP', 'THETA-PERP', 'VET-PERP', 'XMR-PERP', 'TRX-PERP', ];
+        //return ['BTC-PERP', 'ETH-PERP'];
+    }
 }
 
 export async function getMarketPrice(exchange: ccxt.Exchange, symbol: string): Promise<{bid: number, ask: number, spread: number} | undefined> {
@@ -33,54 +48,42 @@ export async function getFees(exchange: ccxt.Exchange, symbol: string): Promise<
     return {taker: exchange.markets[symbol].taker, maker: exchange.markets[symbol].maker};
 }
 
-export async function defaultStopLossTarget(exchange: ccxt.Exchange, symbol: string, timeframe: Timeframe) 
-: Promise<{stop: number, target: number}> {
-    //const period = 14;
-    //const samplesize = 30;
-    //const ohlcvs: ccxt.OHLCV[] = await exchange.fetchOHLCV(symbol, timeframe);
-    //const last14 = ohlcvs.slice(-samplesize);
-
-    //const input = {
-    //    high: last14.map((ohlcv) => ohlcv[2]),
-    //    low: last14.map((ohlcv) => ohlcv[3]),
-    //    close: last14.map((ohlcv) => ohlcv[4]),
-    //    period
-    //}
-
-    //const atr = ATR.calculate(input);
-    //return {stop: ohlcvs[ohlcvs.length-1][3] + atr[atr.length-1], target: atr[atr.length-1] * 2 + ohlcvs[ohlcvs.length-1][4]};
-    const marketPrice = await getMarketPrice(exchange, symbol);
-    const price = marketPrice ? marketPrice : {bid: 0};
-    return {stop: price.bid - price.bid * 0.02, target: price.bid + price.bid * 0.04};
-}
-
-// Returns crypto that has potential ordered depending on strategy
-export async function filterAndOrder(exchange: ccxt.Exchange, strategy: IStrategy): Promise<string[]> {
-    const cryptoSymbols: string[] = await getMarketSymbols(exchange);
-    return await orderMarkets(exchange, cryptoSymbols, strategy);
-}
-
-export async function orderMarkets(exchange: ccxt.Exchange, symbols: string[], strategy: IStrategy) {
-    const candiates: {symbol: string, confidence: number}[] = [];
-    let i = 0;
-    for(let symbol of symbols) {
-        console.log(i+1, "/", symbols.length);
-        await sleep(exchange.rateLimit);
-        await strategy.calculate(symbol);
-        const confidence = strategy.getConfidenceValue();
-        if(confidence < 0.5) {
-            candiates.push({symbol, confidence});
-        }
-        i++;
-    }
-    candiates.sort((pairfirst, pairsecond) => pairfirst.confidence - pairsecond.confidence);
-    return candiates.map((pair) => pair.symbol);
-}
-
 export function getBaseCurrency(symbol: string): string {
+    if(symbol.includes('-PERP')) {
+        return symbol.split('-')[0];
+    }
     return symbol.split('/')[0];
 }
 
 export function getQuoteCurrency(symbol: string): string {
+    if(symbol.includes('-PERP')) {
+        return 'USDT';
+    }
     return symbol.split('/')[1];
+}
+
+// line B ___   ___ line A
+//           \ /
+//            X
+// line A ___/ \___ line B
+export function CrossUpside(lineA: number[], lineB: number[]): boolean {
+    enum crossState {
+        INIT, BELOW, 
+    }
+    let state: crossState = crossState.INIT;
+    for(let i = 0; i < lineA.length; i++) {
+        switch(state) {
+            case crossState.INIT: 
+                if(lineA[i] < lineB[i]) {
+                    state = crossState.BELOW;
+                }
+                break;
+            case crossState.BELOW: 
+                if(lineA[i] > lineB[i]) {
+                    return true;
+                }
+                break;
+        }
+    }
+    return false;
 }

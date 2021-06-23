@@ -1,37 +1,48 @@
 import * as ccxt from "ccxt";
-import { Timeframe } from "./Consts/Timeframe";
-import { filterAndOrder, sleep } from "./helper";
-import { ITradingAccount, OrderStatus } from "./Models/TradingAccount-interface";
-import { RsiStrategy } from "./Strategies/RsiStrategy";
+import { getBaseCurrency, getMarketSymbols, sleep } from "./helper";
+import { ITradingAccount } from "./Models/TradingAccount-interface";
 
 export class ExchangeAccount implements ITradingAccount {
+    private buyOrders: {symbol: string, id: string}[] = [];
+    private initOrders = false;
+    private activeOrders: string[] = [];
+    private tradeResults: boolean[] = [];
 
     constructor(
-        private exchange: ccxt.Exchange
+        private exchange: ccxt.Exchange,
     ) {}    
+    
 
-    async getOrderStatus(id: string, symbol: string): Promise<OrderStatus> {
-        const order = await this.exchange.fetchOrder(id, symbol);
-        if(order.status == 'closed') {
-            return OrderStatus.CLOSE;
-        } else if(order.status == 'open') {
-            return OrderStatus.OPEN;
-        } else {
-            return OrderStatus.CANCELED;
+    async buy(symbol: string, amount: number, pricePerCoin: number): Promise<boolean> {
+        try {
+            console.log('buying: ', symbol, ' amount: ', amount, ' of price: ', pricePerCoin);
+            const order = await this.exchange.createOrder(symbol, 'market', 'buy', amount, pricePerCoin);
+            this.buyOrders.push({symbol, id: order.id});
+            this.activeOrders.push(symbol);
+        } catch(err) {
+            console.log(err);
+            return false;
         }
+        return true;
     }
 
-    async buy(symbol: string, amount: number, pricePerCoin: number): Promise<string> {
-        console.log('buying: ', symbol, ' amount: ', amount, ' of price: ', pricePerCoin);
-        const order = await this.exchange.createOrder(symbol, 'market', 'buy', amount, pricePerCoin);
-        return order.id;
-    }
+    async sellStopLossTarget(symbol: string, stop: number, target: number): Promise<boolean> {
+        // check if the buying order is still getting processed or if it got closed yet
+        const orders = await this.exchange.fetchOpenOrders(symbol);
+        if(orders.length > 0) {
+            return false;
+        }
 
-    async sellStopLossTarget(symbol: string, amount: number, stop: number, target: number): Promise<{stopId: string, targetId: string} | undefined> {
-        console.log('buying: ', symbol, ' amount: ', amount, ' of price: ', stop, target);
-        const targetOrder = await this.exchange.createOrder(symbol, 'limit', 'sell', amount, target);
-        const stopOrder = await this.exchange.createOrder(symbol, 'limit', 'buy', amount, stop);
-        return {stopId: stopOrder.id, targetId: targetOrder.id};
+        try{
+            const amount: number = (await this.getBalance(getBaseCurrency(symbol))).free;
+            console.log('buying: ', symbol, ' amount: ', amount, ' of price: ', stop, target);
+            await this.exchange.createOrder(symbol, 'limit', 'sell', amount, target);
+            await this.exchange.createOrder(symbol, 'limit', 'buy', amount, stop);
+        } catch(err) {
+            console.log(err);
+            return false
+        }
+        return true;
     }
 
     async getBalance(currencyCode: string): Promise<{free: number, used: number}> {
@@ -42,23 +53,47 @@ export class ExchangeAccount implements ITradingAccount {
         return {free: -1, used: -1};
     }
 
-    async getAllOpenOrders(): Promise<string[]> {
-        const symbols = await filterAndOrder(this.exchange, new RsiStrategy(this.exchange, Timeframe.m15));
+    private async openOrders() {
+        const symbols = await getMarketSymbols(this.exchange);
         const orders: ccxt.Order[] = [];
 
         for(let symbol of symbols) {
-            await sleep(this.exchange.rateLimit)
-            const order = await this.exchange.fetchOrders(symbol);
+            await sleep(this.exchange.rateLimit);
+            const order = await this.exchange.fetchOpenOrders(symbol);
             if (order.length != 0) {
                 orders.concat(order);
             }
         }
 
-        return orders.filter((order) => order.status == 'open').map((order) => order.id);
+        return orders.map((order) => order.symbol);
     }
 
-    async getOpenOrders(symbol: string): Promise<string[]> {
-        const orders = await this.exchange.fetchOpenOrders(symbol);
-        return orders.map((order) => order.id);
+
+    async getOpenOrdersCount(): Promise<number> {
+        if(!this.initOrders) {
+            this.activeOrders = await this.openOrders();
+        }
+        for(let symbol of this.activeOrders) {
+            const orders = await this.exchange.fetchOpenOrders(symbol);
+            if(orders.length == 0) {
+                this.activeOrders = this.activeOrders.filter((order) => order != symbol);
+            }
+        }
+        return this.activeOrders.length;
+    }
+
+    async isSameTradeInProcess(symbol: string): Promise<boolean> {
+        const openOrders = await this.exchange.fetchOpenOrders(symbol);
+        return openOrders.length > 0;
+    }
+
+    async getOldBuyOrders(): Promise<{ symbol: string; stop: number; target: number; }[]> {
+        return [];
+    }
+
+
+    getTradeResults(): boolean[] {
+        // todo make this work
+        return this.tradeResults;
     }
 }

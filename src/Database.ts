@@ -5,8 +5,9 @@ import { getBaseCurrency, getMarketSymbols } from "./helper";
 import CryptoCurrencyModel, {ICryptoCurrency} from "./Models/CryptoCurrency-model";
 import LoggingModel, { ILogging } from "./Models/Logging-model";
 import OrderModel, { IOrder } from "./Models/Order-model";
+import TestResultsModel, { ITestResults } from "./Models/TestResults-model";
 
-const STARTING_MONEY = 100000;
+export const STARTING_MONEY = 100000;
 
 export class Database {
     constructor() {}
@@ -58,7 +59,6 @@ export class Database {
         return await CryptoCurrencyModel.remove({_id});
     }
 
-
     async loadOrder(): Promise<IOrder[]> {
         return await OrderModel.find();
     }
@@ -73,6 +73,10 @@ export class Database {
             orderType
         });
         return order.save();
+    }
+
+    async updateOrder(order: IOrder) {
+        return await CryptoCurrencyModel.updateOne({_id: order._id}, order);
     }
 
     async removeOrder(_id: mongoose.Types.ObjectId) {
@@ -92,5 +96,23 @@ export class Database {
 
     async loadLoggedTrades(): Promise<ILogging[]> {
         return await LoggingModel.find();
+    }
+
+    async updateTestResult(testResult: ITestResults) {
+        return await TestResultsModel.updateOne({_id: testResult._id}, testResult);
+    }
+
+    async saveTestResult(name: string, timeframe: string, winsLong: number, losesLong: number, winsShort: number, losesShort: number, winrate: number) {
+        if(!winrate) {
+            winrate = 0;
+        }
+        return new TestResultsModel({
+            _id: new mongoose.Types.ObjectId,
+            name, timeframe, winsLong, losesLong, winsShort, losesShort, winrate
+        }).save();
+    }
+
+    async loadTestResult(): Promise<ITestResults[]> {
+        return await TestResultsModel.find();
     }
 }
