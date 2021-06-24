@@ -1,0 +1,12 @@
+version: '3'
+
+services:
+   crypto-bot:
+      build: .
+      container_name: crypto-bot
+      image: crypto-bot
+      restart: always
+      ports:
+         - 3000:3000
+      command: npm run dev
+      
