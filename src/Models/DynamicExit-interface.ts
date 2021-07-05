@@ -9,4 +9,5 @@ export interface IDynamicExit {
 	timeframe: Timeframe;
 
 	exitTrade(): Promise<boolean>;
+	backTestExit(confirmationData: OHLCV[]): Promise<number>;
 }

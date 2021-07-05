@@ -6,6 +6,7 @@ import { Trend } from "../Consts/Trend";
 import { Candlestick } from "../Consts/Candlestick";
 import { PivotExtremes } from "./PivotExtremes";
 import { Renko } from "./Renko";
+import { MAInput } from "technicalindicators/declarations/moving_averages/SMA";
 
 const RSI_MIDDLE = 50;
 
@@ -128,6 +129,42 @@ export class MarketTrend {
             return Trend.SIDE;
         }
     }
+    
+    public static superGuppy(data: OHLCV[]): Trend {
+		let len = 0
+		const emas: number[][] = [];
+		for(let i = 0; i < 22; i++) {
+			len += 3;
+			const input: MAInput = {
+				period: len,
+				values: data.map(d => d[Candlestick.CLOSE])
+			}
+			emas.push(EMA.calculate(input));
+		}
+		const ema200 = 200;
+		const input: MAInput = {
+			period: ema200,
+			values: data.map(d => d[Candlestick.CLOSE])
+		}
+		emas.push(EMA.calculate(input));
+	
+		const ema = emas.map(e => e[e.length-1]);
+
+		//Fast EMA Color Rules
+		const colfastL = (ema[0] > ema[1] && ema[1] > ema[2] && ema[2] > ema[3] && ema[3] > ema[4] && ema[4] > ema[5] && ema[5] > ema[6])
+		const colfastS = (ema[0] < ema[1] && ema[1] < ema[2] && ema[2] < ema[3] && ema[3] < ema[4] && ema[4] < ema[5] && ema[5] < ema[6])
+		//Slow EMA Color Rules
+		const colslowL = ema[7] > ema[8] && ema[8] > ema[9] && ema[9] > ema[10] && ema[10] > ema[11] && ema[11] > ema[12] && ema[12] > ema[13] && ema[13] > ema[14] && ema[14] > ema[15] && ema[15] > ema[16] && ema[16] > ema[17] && ema[17] > ema[18] && ema[18] > ema[20] && ema[20] > ema[21] && ema[21] > ema[22]
+		const colslowS = ema[7] < ema[8] && ema[8] < ema[9] && ema[9] < ema[10] && ema[10] < ema[11] && ema[11] < ema[12] && ema[12] < ema[13] && ema[13] < ema[14] && ema[14] < ema[15] && ema[15] < ema[16] && ema[16] < ema[17] && ema[17] < ema[18] && ema[18] < ema[20] && ema[20] < ema[21] && ema[21] < ema[22] 
+		//Fast EMA Final Color Rules
+		// colors: aqua and orange and grey
+		const colFinal: Trend = colfastL && colslowL ? Trend.UP : colfastS && colslowS ? Trend.DOWN : Trend.SIDE;
+		//Slow EMA Final Color Rules
+		// colors: lime and red and grey
+		const colFinal2 = colslowL  ? Trend.UP : colslowS ? Trend.DOWN : Trend.SIDE
+
+		return colFinal == colFinal2 ? colFinal : Trend.SIDE;
+	}
 
     public static renko(data: OHLCV[]): Trend {
 		const renkoBricks = Renko.traditional(data, data[data.length-1][Candlestick.CLOSE] * 0.001);

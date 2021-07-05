@@ -42,7 +42,7 @@ export class PivotExtremes {
         return undefined;
     }
 
-    private static pivot(src: OHLCV[], len: number, isHigh: boolean, candlestick: Candlestick): boolean[] {
+    private static pivot(src: OHLCV[], len: number, isHigh: boolean, candlestick: number): boolean[] {
         const pivots: boolean[] = new Array(src.length).fill(false);
 
         for(let i = src.length - 1 - len; i > len; i--) {

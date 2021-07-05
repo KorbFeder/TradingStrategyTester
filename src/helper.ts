@@ -87,3 +87,10 @@ export function CrossUpside(lineA: number[], lineB: number[]): boolean {
     }
     return false;
 }
+
+export function change(data: number[], i: number): number {
+		if(i - 1 < 0) {
+			throw 'i would be negative for array in change function';
+		}
+		return data[i] - data[i-1];
+	}

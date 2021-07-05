@@ -10,10 +10,12 @@ import TestResultsModel, { ITestResults } from "./Models/TestResults-model";
 export const STARTING_MONEY = 100000;
 
 export class Database {
-    constructor() {}
+    constructor(private instance: number = 0) {}
 
-    async connect(exchange: Exchange) {
-        await mongoose.connect(process.env.MONGODB as string, {
+    async connect(instance: number) {
+        let connectionString = process.env.MONGODB as string;
+        this.instance = instance;
+        await mongoose.connect(connectionString, {
             useNewUrlParser: true,
             useUnifiedTopology: true,
             useFindAndModify: false,
@@ -24,16 +26,22 @@ export class Database {
 
         const cryptos = await this.loadCryptos();
         if(cryptos.length == 0) {
-            const symbols = await getMarketSymbols(exchange);
-            for(let symbol of symbols) {
-                const base = getBaseCurrency(symbol);
-                
-                this.saveCrypto(base, 0, 0);
+        //    const symbols = await getMarketSymbols(exchange);
+        //    for(let symbol of symbols) {
+        //        const base = getBaseCurrency(symbol);
+        //        
+        //        this.saveCrypto(base, 0, 0);
+        //    }
+        //    const quoteCrypeo = process.env.QUOTE_CURRENCY ? process.env.QUOTE_CURRENCY : 'USDT';
+        //    this.saveCrypto(quoteCrypeo, STARTING_MONEY, 0);
+            let mainCurrency = 'USDT';
+            let envMain = process.env.QUOTE_CURRENCY;
+            if(envMain) {
+                mainCurrency = envMain;
             }
-            const quoteCrypeo = process.env.QUOTE_CURRENCY ? process.env.QUOTE_CURRENCY : 'USDT';
-            this.saveCrypto(quoteCrypeo, STARTING_MONEY, 0);
+            await this.saveCrypto(mainCurrency, STARTING_MONEY, 0);
         }
-   }
+    }
 
     async saveCrypto(currencyCode: string, free: number, used: number): Promise<ICryptoCurrency> {
         const crypto = new CryptoCurrencyModel({       
@@ -41,14 +49,15 @@ export class Database {
             free,
             used,
             currencyCode,
-
+            instance: this.instance
         });
         
         return await crypto.save();
     }
 
     async loadCryptos(): Promise<ICryptoCurrency[]> {
-        return await CryptoCurrencyModel.find();
+        const cryptos = await CryptoCurrencyModel.find();
+        return cryptos.filter(crypto => crypto.instance == this.instance);
     } 
 
     async updateCrypto(crypto: ICryptoCurrency) {
@@ -60,17 +69,20 @@ export class Database {
     }
 
     async loadOrder(): Promise<IOrder[]> {
-        return await OrderModel.find();
+        const orders = await OrderModel.find();
+        return orders.filter(order => order.instance == this.instance);
     }
 
-    async saveOrder(orderType: string, symbol: string, amount: number, stop: number, target: number) {
+    async saveOrder(orderType: string, symbol: string, amount: number, stop: number, target: number, buyPrice: number) {
         const order = new OrderModel({
             _id: new mongoose.Types.ObjectId(),
             symbol,
             amount,
+            buyPrice,
             stop, 
             target,
-            orderType
+            orderType,
+            instance: this.instance
         });
         return order.save();
     }

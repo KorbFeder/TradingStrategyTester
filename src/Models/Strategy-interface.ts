@@ -6,7 +6,7 @@ import { IDynamicExit } from "./DynamicExit-interface";
 export interface IStrategy {
 	usesDynamicExit: boolean;
     // calculate strategy. Data is array of ohlcv datas, should be ordered by timeframe
-    calculate(data: ccxt.OHLCV[], optional?: any): Promise<TradeDirection>;
+    calculate(data: ccxt.OHLCV[], exchange?: ccxt.Exchange, symbol?: string, timeframe?: Timeframe, since?: number, limit?: number): Promise<TradeDirection>;
     getStopLossTarget(data: ccxt.OHLCV[], direction: TradeDirection): Promise<{stop: number, target: number}>;
     dynamicExit(exchange: ccxt.Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined>;
 }

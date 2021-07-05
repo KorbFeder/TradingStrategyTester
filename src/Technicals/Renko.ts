@@ -41,7 +41,7 @@ export class Renko {
 		renkoBricks.push({high: firstValue, low: firstValue, ghost: false});
 
 		for(let u = 1; u < data.length; u++) {
-			// the last candle is a ghost candle and needs to be marked as one
+			// the last candle is a ghost candle && needs to be marked as one
 			let ghost = false;
 			if(u == data.length - 1) {
 				ghost = true;

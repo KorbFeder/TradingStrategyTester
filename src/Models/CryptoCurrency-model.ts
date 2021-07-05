@@ -5,6 +5,7 @@ export interface ICryptoCurrency extends Document {
     free: number,
     used: number,
     currencyCode: string,
+    instance: number
 }
 
 const CryptoCurrencySchema: Schema = new Schema({
@@ -12,6 +13,7 @@ const CryptoCurrencySchema: Schema = new Schema({
     free: {type: Number, required: true},
     used: {type: Number, required: true},
     currencyCode: {type: String, required: true},
+    instance: {type: Number, required: true},
 }, 
 {
     timestamps: true

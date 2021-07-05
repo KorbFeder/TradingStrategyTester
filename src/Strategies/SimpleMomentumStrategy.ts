@@ -15,7 +15,7 @@ export class SimpleMomentumStrategy implements IStrategy {
     constructor(private exchange: Exchange){}
 
     async calculate(data: OHLCV[], optional: any): Promise<TradeDirection> {
-        const macdStrat = new MacdStrategy(this.exchange);
+        const macdStrat = new MacdStrategy();
         const macd = await macdStrat.calculate(data);
         const marketTrend = new MarketTrend();
         const trend: Trend = await marketTrend.tripleSMA(data);

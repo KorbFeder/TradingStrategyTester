@@ -33,3 +33,26 @@ export function nextTimeframe(timeframe: Timeframe): Timeframe {
     }
 }
 
+export function timeToNumber(timeframe: Timeframe): number {
+    switch(timeframe) {
+        case Timeframe.m1:
+            return 60 * 1000;
+        case Timeframe.m5:
+            return 60 * 5 * 1000;
+        case Timeframe.m15:
+            return 60 * 15 * 1000;
+        case Timeframe.m30:
+            return 60 * 30 * 1000;
+        case Timeframe.h1:
+            return 60 * 60 * 1000;
+        case Timeframe.h4: 
+            return 60 * 60 * 4 * 1000;
+        case Timeframe.d1:
+            return 60 * 60 * 24 * 1000;
+        case Timeframe.w1:
+            return 60 * 60 * 24 * 7 * 1000;
+        case Timeframe.Mo1:
+            return 60 * 60 * 24 * 7 * 4 * 1000;
+    }
+}
+

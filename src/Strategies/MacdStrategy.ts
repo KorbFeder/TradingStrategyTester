@@ -15,7 +15,6 @@ export class MacdStrategy implements IStrategy {
     usesDynamicExit: boolean = false;
 
     constructor(
-        public exchange: Exchange,
     ) {}
 
 

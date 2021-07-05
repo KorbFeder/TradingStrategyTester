@@ -16,7 +16,7 @@ export class RenkoEmaStrategy implements IStrategy {
 	public usesDynamicExit: boolean = true;
 	private emaPeriod: number = 21;
 	private rsiPeriod: number = 14
-	private crossCheckSize: number = 3;
+	private crossCheckSize: number = 2;
 	private brickSize = -1;
 	private stopLossBricks = 8;
 	private rsiOversold = 20;
@@ -49,10 +49,16 @@ export class RenkoEmaStrategy implements IStrategy {
 		const renkoAvg = _renkoAvg.slice(_renkoAvg.length - this.crossCheckSize - 1 - ghostCandleCount, _renkoAvg.length - 1 - ghostCandleCount);
 
 		if(CrossUpside(emaResult, renkoAvg) && Renko.isRedCandle(renkoBricks, renkoBricks.length-1) && rsiExtremes == TradeDirection.SELL) {
-			return TradeDirection.SELL;
+			const brickCount = Math.abs((renkoAvg[1] - renkoBricks[renkoBricks.length-1].low) / this.brickSize);
+			if(brickCount < 3) {
+				return TradeDirection.SELL;
+			}
 		}
 		if(CrossUpside(renkoAvg, emaResult) && Renko.isGreenCandle(renkoBricks, renkoBricks.length-1) && rsiExtremes == TradeDirection.BUY) {
-			return TradeDirection.BUY;
+			const brickCount = Math.abs((renkoBricks[renkoBricks.length-1].high - renkoAvg[1]) / this.brickSize);
+			if(brickCount < 3) {
+				return TradeDirection.BUY;
+			}
 		}
 		return TradeDirection.HOLD;
 	}

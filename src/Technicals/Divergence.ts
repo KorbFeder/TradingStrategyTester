@@ -7,6 +7,7 @@ import { TradeDirection } from "../Consts/TradeDirection";
 import { Candlestick } from "../Consts/Candlestick";
 import { PivotExtremes } from "./PivotExtremes";
 import { Renko, RenkoBrick } from "./Renko";
+import { SmoothRsi } from "./SmoothRsi";
 
 const PIVOT_LENGTH = 4;
 const RSI_LENGTH = 14;
@@ -21,22 +22,13 @@ export class Divergence {
 	public static rsiRenko(data: OHLCV[], brickSize: number) {
 		const renkoBricks: RenkoBrick[] = Renko.traditional(data, brickSize);
 		const renkoOHLCV: OHLCV[] = renkoBricks.map(brick => [-1, brick.high, brick.high, brick.low, brick.low, -1]);
-		const rsiInput: RSIInput = {
-			period: this.rsiLength,
-			values: renkoBricks.map(brick => (brick.high + brick.low) / 2)
-		};
-		const rsiResult: number[] = RSI.calculate(rsiInput);
-		return this.divergence(renkoOHLCV, rsiResult, this.oversold, this.overbought);
-
+		const smoothRsi = SmoothRsi.calculate(data.map(data => data[Candlestick.CLOSE]), this.rsiLength);
+		return this.divergence(renkoOHLCV, smoothRsi, this.oversold, this.overbought);
 	}
 
 	public static rsiBounds(data: OHLCV[]) {
-		const rsiInput: RSIInput = {
-			period: this.rsiLength,
-			values: data.map((d) => d[Candlestick.CLOSE])
-		};
-		const rsiResult: number[] = RSI.calculate(rsiInput);
-		return this.divergence(data, rsiResult, this.oversold, this.overbought);
+		const smoothRsi = SmoothRsi.calculate(data.map(data => data[Candlestick.CLOSE]), this.rsiLength);
+		return this.divergence(data, smoothRsi, this.oversold, this.overbought);
 	}
 
 	public static macd(data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
@@ -60,12 +52,8 @@ export class Divergence {
 	}
 
 	public static rsi(data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
-		const rsiInput: RSIInput = {
-			period: this.rsiLength,
-			values: data.map((d) => d[Candlestick.CLOSE])
-		};
-		const rsiResult: number[] = RSI.calculate(rsiInput);
-		return this.divergence(data, rsiResult);
+		const smoothRsi = SmoothRsi.calculate(data.map(data => data[Candlestick.CLOSE]), this.rsiLength);
+		return this.divergence(data, smoothRsi);
 	}
 
 	public static ao(_data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
@@ -126,39 +114,46 @@ export class Divergence {
 		return {index: 0, tradeDirection: TradeDirection.HOLD};
 	}
 
-	private static divergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0): {index: number, tradeDirection: TradeDirection} {
-		const endOfOsc: number[] = osc.slice(osc.length - this.lookBackCandles, osc.length);
-		const endOfData: OHLCV[] = data.slice(data.length - this.lookBackCandles, data.length);
+	public static divergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0, length: number = 14): {index: number, tradeDirection: TradeDirection} {
+		const lookBackCandles = PIVOT_LENGTH * 2 + length;
+		const endOfOsc: number[] = osc.slice(osc.length - lookBackCandles, osc.length);
+		const endOfData: OHLCV[] = data.slice(data.length - lookBackCandles, data.length);
 		const {highs, lows } = PivotExtremes.oscAsBoolArray(osc, this.pivotLength);		
-		const highPivots = highs.slice(highs.length - this.lookBackCandles, highs.length);
-		const lowPivots = lows.slice(lows.length - this.lookBackCandles, lows.length);
+		const highPivots = highs.slice(highs.length - lookBackCandles, highs.length);
+		const lowPivots = lows.slice(lows.length - lookBackCandles, lows.length);
 
-		for(let i = endOfData.length - 1; i >= 0; i--) {
+		for(let i = endOfData.length - 1; i >= 17; i--) {
 			if(highPivots[i]) {
 				// search for next high
-				for(let u = i - 1; u >= 0; u--) {
+				let maxRsiRange = i - length;
+				if(maxRsiRange < 0) {
+					maxRsiRange = 0;
+				}
+				for(let u = i - 1; u >= maxRsiRange; u--) {
 					if(highPivots[u]) {
 						if(endOfData[i][Candlestick.HIGH] > endOfData[u][Candlestick.HIGH] && endOfOsc[i] < endOfOsc[u]) {
 							if(oscMax < endOfOsc[u]) {
-								return {index: data.length - 1 - (this.lookBackCandles - i), tradeDirection: TradeDirection.SELL};
+								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.SELL};
 							}
 						}
 					}
-
 				}
 			}
 
 			if(lowPivots[i]) {
 				// search for next low
-				for(let u = i - 1; u >= 0; u--) {
+				let maxRsiRange = i - length;
+				if(maxRsiRange < 0) {
+					maxRsiRange = 0;
+				}
+				for(let u = i - 1; u >= maxRsiRange; u--) {
 					if(lowPivots[u]) {
 						if(endOfData[i][Candlestick.LOW] < endOfData[u][Candlestick.LOW] && endOfOsc[i] > endOfOsc[u]) {
 							if(oscMin > endOfOsc[u]) {
-								return {index: data.length - 1 - (this.lookBackCandles - i), tradeDirection: TradeDirection.BUY};
+								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.BUY};
 							}
 						}
 					}
-
 				}
 			}
 		}
