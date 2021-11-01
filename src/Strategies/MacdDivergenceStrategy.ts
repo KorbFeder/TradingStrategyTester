@@ -5,6 +5,7 @@ import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
+import { LimitOrder } from "../Models/FuturePosition-interface";
 import { IStrategy } from "../Models/Strategy-interface";
 import { StopLoss } from "../Orders/StopLoss";
 import { Divergence } from "../Technicals/Divergence";
@@ -17,7 +18,7 @@ export class MacdDivergenceStrategy implements IStrategy {
 		return div.tradeDirection;
 	}
 
-	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stop: number; target: number; }> {
+	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
 		return StopLoss.atr(data, Candlestick.close(data), direction);
 	}
 

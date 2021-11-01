@@ -56,3 +56,7 @@ export function timeToNumber(timeframe: Timeframe): number {
     }
 }
 
+export function calcStartingTimestamp(timeframe: Timeframe, since: number, limit: number) {
+    const diff = timeToNumber(timeframe) * limit - 1;
+    return since - diff;   
+}

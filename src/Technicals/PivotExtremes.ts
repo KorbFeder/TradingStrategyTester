@@ -49,6 +49,10 @@ export class PivotExtremes {
             let isFound: boolean = true;
             let p: number = src[i][candlestick];
             for(let u = i + 1; u < i + len; u++) {
+                // @todo -> see if its worth trying to limit the pivot detection for the latest pivot point on the end
+                if(u > src.length-1) {
+                    break;
+                }
                 if(isHigh && src[u][candlestick] > p) {
                     isFound = false;
                     break;

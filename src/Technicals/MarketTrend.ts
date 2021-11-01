@@ -1,5 +1,5 @@
 import { Exchange, OHLCV } from "ccxt";
-import { SMA, MACD,  RSI, EMA } from "technicalindicators";
+import { SMA, MACD,  RSI, EMA, ADX } from "technicalindicators";
 import { MACDInput } from "technicalindicators/declarations/moving_averages/MACD";
 import { RSIInput } from "technicalindicators/declarations/oscillators/RSI";
 import { Trend } from "../Consts/Trend";
@@ -7,27 +7,109 @@ import { Candlestick } from "../Consts/Candlestick";
 import { PivotExtremes } from "./PivotExtremes";
 import { Renko } from "./Renko";
 import { MAInput } from "technicalindicators/declarations/moving_averages/SMA";
+import { ADXInput, ADXOutput } from "technicalindicators/declarations/directionalmovement/ADX";
+import { calcStartingTimestamp, Timeframe } from "../Consts/Timeframe";
 
 const RSI_MIDDLE = 50;
 
+enum TrendStrength {
+    WEAK, 
+    STRONG,
+    VERY_STRONG, 
+    EXTREMELY_STRONG,
+}
+
 export class MarketTrend {
-    private sma100period = 100;
-    private sma50period = 50;
-    private sma200period = 200;
-
-    private macdFastLength = 12;
-    private macdSlowLength = 26;
-    private macdSignalSmoothing = 9;
-
-    private rsiPeriod = 14;
-
+    private static sma100period = 100;
+    private static sma50period = 50;
+    private static sma200period = 200;
+    private static macdFastLength = 12;
+    private static macdSlowLength = 26;
+    private static macdSignalSmoothing = 9;
+    private static adxPeriod: number = 14;
+    private static rsiPeriod = 14;
     private static emaPeriod = 200;
-
     private static pivotLength = 5;
 
     constructor() {}
 
-    private async getIndicatorTrends(data:  OHLCV[]): Promise<Trend[]> {
+    public static adxStrength(data: OHLCV[]): TrendStrength {
+        const input: ADXInput = {
+            high: Candlestick.high_all(data),
+            low: Candlestick.low_all(data),
+            close: Candlestick.close_all(data),
+            period: this.adxPeriod
+        };
+
+        const adxResult: ADXOutput[] = ADX.calculate(input);
+        const adx: number = adxResult[adxResult.length-1].adx;
+
+        if(adx > 25 && adx < 50) {
+            return TrendStrength.STRONG;
+        } else if(adx > 50 && adx < 75) {
+            return TrendStrength.VERY_STRONG;
+        } else if(adx > 75 && adx < 100) {
+            return TrendStrength.EXTREMELY_STRONG;
+        }
+        return TrendStrength.WEAK;
+    }
+
+    public static async mft200Ema(symbol: string, exchange: Exchange, timeframes: Timeframe[], since?: number, limit?: number): Promise<Trend> {
+        const trends: Trend[] = [];
+        for(let timeframe of timeframes) {
+            let startingTime = undefined;
+            if(since && limit) {
+                startingTime = calcStartingTimestamp(timeframe, since, limit);
+            }
+            const data = await exchange.fetchOHLCV(symbol, timeframe, startingTime, limit);
+            const values = data.map((ohlcv) => ohlcv[4]);
+            const result = EMA.calculate({period: this.emaPeriod, values});
+            
+            if(data[data.length-1][4] > result[result.length-1]) {
+                // above ema
+                trends.push(Trend.UP);
+            } else if(data[data.length-1][4] < result[result.length-1]) {
+                // below ema
+                trends.push(Trend.DOWN);
+            } else {
+                trends.push(Trend.SIDE);
+            }
+        }
+        if(trends.every((v => v == trends[0]))) {
+            return trends[0];
+        }
+        return Trend.SIDE;
+    }
+
+    public static isStrong(data: OHLCV[]): boolean {
+        const strength: TrendStrength = this.adxStrength(data);
+        if(strength == TrendStrength.EXTREMELY_STRONG || strength == TrendStrength.VERY_STRONG || strength == TrendStrength.STRONG) {
+            return true;
+        }
+        return false;
+    }
+
+    public static adx(data: OHLCV[]): Trend {
+        const input: ADXInput = {
+            high: Candlestick.high_all(data),
+            low: Candlestick.low_all(data),
+            close: Candlestick.close_all(data),
+            period: this.adxPeriod
+        };
+
+        const adxResult: ADXOutput[] = ADX.calculate(input);
+        const adxCurrent = adxResult[adxResult.length-1];
+        if(this.isStrong(data)) {
+            if(adxCurrent.pdi > adxCurrent.mdi) {
+                return Trend.UP;
+            } else if(adxCurrent.mdi > adxCurrent.pdi) {
+                return Trend.DOWN;
+            }
+        }
+        return Trend.SIDE;
+    }
+
+    private static async getIndicatorTrends(data:  OHLCV[]): Promise<Trend[]> {
         const trends: Trend[] = [];
 
         trends.push(this.tripleSMA(data));
@@ -38,7 +120,7 @@ export class MarketTrend {
         return trends;
     }
 
-    async useAllIndicators(data: OHLCV[]): Promise<Trend> {
+    static async useAllIndicators(data: OHLCV[]): Promise<Trend> {
         const trends = await this.getIndicatorTrends(data);
         let uptrend = 0;
         let downtrend = 0;
@@ -72,7 +154,7 @@ export class MarketTrend {
         return Trend.SIDE;
     }
 
-    public macd(data: OHLCV[]): Trend {
+    public static macd(data: OHLCV[]): Trend {
         let macdLength = data.length - 5 * this.macdSlowLength;
         if(macdLength < 0) {
             macdLength = 0;
@@ -99,7 +181,7 @@ export class MarketTrend {
         }
     }
 
-    public rsi(data: OHLCV[]): Trend {
+    public static rsi(data: OHLCV[]): Trend {
         const rsiInput: RSIInput =  {
             values: data.slice(data.length - this.rsiPeriod - 1, data.length).map((ohlcv: OHLCV) => ohlcv[4]),
             period: this.rsiPeriod
@@ -117,7 +199,7 @@ export class MarketTrend {
         }
     }
 
-    public tripleSMA(data: OHLCV[]): Trend {
+    public static tripleSMA(data: OHLCV[]): Trend {
         const sma50 = SMA.calculate({period: this.sma50period, values: data.slice(data.length - this.sma50period, data.length).map((ohlcv: OHLCV) => ohlcv[4])});
         const sma100 = SMA.calculate({period: this.sma100period, values: data.slice(data.length - this.sma100period, data.length).map((ohlcv: OHLCV) => ohlcv[4])});
         const sma200 = SMA.calculate({period: this.sma200period, values: data.slice(data.length - this.sma200period, data.length).map((ohlcv: OHLCV) => ohlcv[4])});

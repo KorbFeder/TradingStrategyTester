@@ -3,9 +3,11 @@ import mongoose from "mongoose";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { getBaseCurrency, getMarketSymbols } from "./helper";
 import CryptoCurrencyModel, {ICryptoCurrency} from "./Models/CryptoCurrency-model";
+import { LimitOrder } from "./Models/FuturePosition-interface";
 import LoggingModel, { ILogging } from "./Models/Logging-model";
 import OrderModel, { IOrder } from "./Models/Order-model";
-import TestResultsModel, { ITestResults } from "./Models/TestResults-model";
+import TestAccountModel, { ITestAccount, ITrade } from "./Models/TestAccount-model";
+import AlertModel, { IAlert } from "./Models/Alert-model";
 
 export const STARTING_MONEY = 100000;
 
@@ -73,14 +75,14 @@ export class Database {
         return orders.filter(order => order.instance == this.instance);
     }
 
-    async saveOrder(orderType: string, symbol: string, amount: number, stop: number, target: number, buyPrice: number) {
+    async saveOrder(orderType: string, symbol: string, amount: number, stops: LimitOrder[], targets: LimitOrder[], buyPrice: number) {
         const order = new OrderModel({
             _id: new mongoose.Types.ObjectId(),
             symbol,
             amount,
             buyPrice,
-            stop, 
-            target,
+            stops, 
+            targets,
             orderType,
             instance: this.instance
         });
@@ -97,7 +99,7 @@ export class Database {
 
     async logTrade(symbol: string, usdt: number, amount: number, tradeDirection: TradeDirection) {
         const logging = new LoggingModel({
-            _id: new mongoose.Types.ObjectId,
+            _id: new mongoose.Types.ObjectId(),
             usdt,
             symbol,
             amount,
@@ -110,21 +112,48 @@ export class Database {
         return await LoggingModel.find();
     }
 
-    async updateTestResult(testResult: ITestResults) {
-        return await TestResultsModel.updateOne({_id: testResult._id}, testResult);
+
+    // Test account for Back- and Front-Testing
+    async saveTestAccount(name: string, initialBalance: number) {
+        const testAccount = new TestAccountModel({
+            _id: new mongoose.Types.ObjectId(),
+            name,
+            trades: [],
+            percentageGain: [],
+            balance: initialBalance, 
+            pnl: 0
+        })
+        await testAccount.save();
     }
 
-    async saveTestResult(name: string, timeframe: string, winsLong: number, losesLong: number, winsShort: number, losesShort: number, winrate: number) {
-        if(!winrate) {
-            winrate = 0;
-        }
-        return new TestResultsModel({
-            _id: new mongoose.Types.ObjectId,
-            name, timeframe, winsLong, losesLong, winsShort, losesShort, winrate
-        }).save();
+    async updateTestAccount(account: ITestAccount) {
+        return await TestAccountModel.updateOne({_id: account._id}, account);
     }
 
-    async loadTestResult(): Promise<ITestResults[]> {
-        return await TestResultsModel.find();
+    async loadTestAccounts(): Promise<ITestAccount[]> {
+        return await TestAccountModel.find();
     }
+
+    async removeTestAccount(_id: mongoose.Types.ObjectId) {
+        return await TestAccountModel.remove({_id});
+    }
+
+
+    async saveAlert(symbol: string, price: number) {
+        const alert = new AlertModel({
+            _id: new mongoose.Types.ObjectId(),
+            price,
+            symbol
+        })
+        await alert.save();
+    }
+
+    async loadAlerts(): Promise<IAlert[]> {
+        return await AlertModel.find();
+    }
+
+    async removeAlert(_id: mongoose.Types.ObjectId) {
+        return await AlertModel.remove({_id});
+    }
+
 }

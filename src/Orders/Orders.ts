@@ -1,4 +1,5 @@
 import { Balance, Balances, Exchange, OHLCV, Order } from "ccxt";
+import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { FuturePosition } from "../Models/FuturePosition-interface";
@@ -11,38 +12,18 @@ export class Orders {
 
 	async marketOrder(symbol: string, amount: number, price: number, tradeDirection: TradeDirection): Promise<Order[] | undefined>  {
 		const futurePosition: FuturePosition = {
+			breakEvenPrice: price,
 			symbol,
 			price,
 			amount,
 			tradeDirection,
-			buyOrderType: 'market'
+			buyOrderType: 'market',
+			stopLosses: [],
+			profitTargets: []
 		}
 		return this.createPosition(futurePosition);
 	}
-
-	async defaultMarketOrder(symbol: string, price: number, tradeDirection: TradeDirection, timeframe: Timeframe): Promise<Order[] | undefined>  {
-		const account = await this.exchange.privateGetAccount();
-		const collateral = account.result.freeCollateral;
-
-
-		let risk: number = 0.02;
-		const envRisk = process.env.RISK;
-		if(envRisk) {
-			risk = parseFloat(envRisk);
-		}
-		const data: OHLCV[] = await this.exchange.fetchOHLCV(symbol, timeframe);
-		const {stop: stopLoss, target} = StopLoss.atr(data, price, tradeDirection);
 	
-		const amount = PositionSize.calculate(risk, collateral, price, stopLoss);
-		const futurePosition: FuturePosition = {
-			symbol,
-			price,
-			amount,
-			tradeDirection,
-			buyOrderType: 'market'
-		}
-		return this.createPosition(futurePosition);
-	}
 
 	async createPosition(futurePosition: FuturePosition): Promise<Order[] | undefined> {
 		try{
@@ -65,21 +46,20 @@ export class Orders {
 			if(maxPositions <= await this.positionSize()) {
 				return undefined;
 			}
+			console.log(futurePosition);
 
 			if(futurePosition.tradeDirection == TradeDirection.SELL) {
 				// sell order
 				const orders: Order[] = [];
 				const position = await this.exchange.createOrder(futurePosition.symbol, futurePosition.buyOrderType, 'sell', futurePosition.amount, futurePosition.price);
 				orders.push(position);
-				if(futurePosition.stopLoss) {
-					const stopLossPosition = await this.exchange.createOrder(futurePosition.symbol, 'stop', 'buy', futurePosition.amount, undefined, {'reduceOnly': 1, 'triggerPrice': futurePosition.stopLoss});
+				for(let stop of futurePosition.stopLosses) {
+					const stopLossPosition = await this.exchange.createOrder(futurePosition.symbol, 'stop', 'buy', stop.amount, undefined, {reduceOnly: true, 'triggerPrice': stop.price});
 					orders.push(stopLossPosition);
 				}
-				if(futurePosition.profitTargets) {
-					for(let target of futurePosition.profitTargets) {
-						const targetPosition = await this.exchange.createOrder(futurePosition.symbol, 'takeProfit', 'buy', target.amount, undefined ,{'reduceOnly': 1, 'triggerPrice': target.price});
-						orders.push(targetPosition);
-					}
+				for(let target of futurePosition.profitTargets) {
+					const targetPosition = await this.exchange.createOrder(futurePosition.symbol, 'takeProfit', 'buy', target.amount, undefined ,{reduceOnly: true, 'triggerPrice': target.price});
+					orders.push(targetPosition);
 				}
 				return orders;
 			} else if(futurePosition.tradeDirection == TradeDirection.BUY) {
@@ -87,15 +67,13 @@ export class Orders {
 				const orders: Order[] = [];
 				const position = await this.exchange.createOrder(futurePosition.symbol, futurePosition.buyOrderType, 'buy', futurePosition.amount, futurePosition.price);
 				orders.push(position);
-				if(futurePosition.stopLoss) {
-					const stopLossPosition = await this.exchange.createOrder(futurePosition.symbol, 'stop', 'sell', futurePosition.amount, undefined, {'reduceOnly': 1, 'triggerPrice': futurePosition.stopLoss});
+				for(let stop of futurePosition.stopLosses) {
+					const stopLossPosition = await this.exchange.createOrder(futurePosition.symbol, 'stop', 'sell', stop.amount, undefined, {'reduceOnly': true, 'triggerPrice': stop.price});
 					orders.push(stopLossPosition);
 				}
-				if(futurePosition.profitTargets) {
-					for(let target of futurePosition.profitTargets) {
-						const targetPosition = await this.exchange.createOrder(futurePosition.symbol, 'takeProfit', 'sell', target.amount, undefined ,{'reduceOnly': 1, 'triggerPrice': target.price});
-						orders.push(targetPosition);
-					}
+				for(let target of futurePosition.profitTargets) {
+					const targetPosition = await this.exchange.createOrder(futurePosition.symbol, 'takeProfit', 'sell', target.amount, undefined ,{'reduceOnly': true, 'triggerPrice': target.price});
+					orders.push(targetPosition);
 				}
 				return orders;
 				
@@ -160,40 +138,13 @@ export class Orders {
 		}
 	}
 
-	async defaultPosition(symbol: string, price: number, timeframe: Timeframe, tradeDirection: TradeDirection) {
-		const account = await this.exchange.privateGetAccount();
-		const collateral = account.result.freeCollateral;
-
-
-		let risk: number = 0.02;
-		const envRisk = process.env.RISK;
-		if(envRisk) {
-			risk = parseFloat(envRisk);
-		}
-		const data: OHLCV[] = await this.exchange.fetchOHLCV(symbol, timeframe);
-		const {stop: stopLoss, target} = StopLoss.atr(data, price, tradeDirection);
 	
-		const amount = PositionSize.calculate(risk, collateral, price, stopLoss);
-		const futurePosition: FuturePosition = {
-			symbol,
-			price,
-			buyOrderType: 'market',
-			amount,
-			tradeDirection,
-			stopLoss,
-			profitTargets: [
-				{price: target, amount}
-			]
-		}
-		return this.createPosition(futurePosition);
-	}
-
 	async stopLoss(symbol: string, amount: number, stopLoss: number, tradeDirection: TradeDirection): Promise<Order | undefined> {
 		let stopLossPosition = undefined;
 		if(tradeDirection == TradeDirection.SELL) {
-			stopLossPosition = await this.exchange.createOrder(symbol, 'stop', 'buy', amount, undefined, {'reduceOnly': 1, 'triggerPrice': stopLoss});
+			stopLossPosition = await this.exchange.createOrder(symbol, 'stop', 'buy', amount, undefined, {'reduceOnly': true, 'triggerPrice': stopLoss});
 		} else if(tradeDirection == TradeDirection.BUY) {
-			stopLossPosition = await this.exchange.createOrder(symbol, 'stop', 'sell', amount, undefined, {'reduceOnly': 1, 'triggerPrice': stopLoss});
+			stopLossPosition = await this.exchange.createOrder(symbol, 'stop', 'sell', amount, undefined, {'reduceOnly': true, 'triggerPrice': stopLoss});
 		}
 		return stopLossPosition;
 	}

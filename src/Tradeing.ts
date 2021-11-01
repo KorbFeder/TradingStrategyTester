@@ -9,18 +9,20 @@ import { Candlestick } from "./Consts/Candlestick";
 import { MarketTrend } from "./Technicals/MarketTrend";
 import { Trend } from "./Consts/Trend";
 import { IDynamicExit } from "./Models/DynamicExit-interface";
+import { IBot } from "./Models/Bot-interface";
+import { OrderType } from "./Orders/OrderType";
 
-export class Trading {
+export class Trading implements IBot {
     private dynamicExits: IDynamicExit[] = [];
 
     constructor(
-        private exchange: ccxt.Exchange,
+        public exchange: ccxt.Exchange,
         private trendingStrategy: IStrategy,
         private rangingStrategy: IStrategy,
         private timeframe: Timeframe
     ){}
 
-    async trade() {
+    async start() {
         while(true) {
             const symbols = await getMarketSymbols(this.exchange);
 
@@ -45,7 +47,7 @@ export class Trading {
         }
     }
 
-    async waitForOrderCompletion(symbol: string, order: Orders) {
+    private async waitForOrderCompletion(symbol: string, order: Orders) {
         while(true) {
             const positionStatus = await order.checkPositionStatus(symbol);
             if(positionStatus.positionActive) {
@@ -55,7 +57,7 @@ export class Trading {
         }
     }
 
-    async checkDynamicExit() {
+    private async checkDynamicExit() {
         const order = new Orders(this.exchange);
         for(let exit of this.dynamicExits) {
             if(await exit.exitTrade()) {
@@ -67,26 +69,27 @@ export class Trading {
 
     }
 
-    async useStrategy(data: ccxt.OHLCV[], symbol: string, strategy: IStrategy) {
+    private async useStrategy(data: ccxt.OHLCV[], symbol: string, strategy: IStrategy) {
+        const orderType = new OrderType(this.exchange);
         const order = new Orders(this.exchange);
         const tradeDirection: TradeDirection = await strategy.calculate(data, this.exchange, symbol, this.timeframe);
         if(!(tradeDirection == TradeDirection.HOLD)) {
             if(!strategy.usesDynamicExit) {
                 console.log('Takeing position', symbol, '. Direction:', tradeDirection);
 
-                const orders = await order.defaultPosition(symbol, data[data.length-1][Candlestick.CLOSE], this.timeframe, tradeDirection);
+                const orders = await orderType.defaultPosition(symbol, data[data.length-1][Candlestick.CLOSE], this.timeframe, tradeDirection);
                 if(orders) {
                     await this.waitForOrderCompletion(symbol, order);
                 }
                 await order.removeUselessOrders();
             
             } else {
-                const marketOrder = await order.defaultMarketOrder(symbol, data[data.length-1][Candlestick.CLOSE], tradeDirection, this.timeframe);
+                const marketOrder = await orderType.defaultMarketOrder(symbol, data[data.length-1][Candlestick.CLOSE], tradeDirection, this.timeframe);
 
                 // emergency stopLoss if there is one
-                const {stop} = await strategy.getStopLossTarget(data, tradeDirection);
-                if(stop != -1 && marketOrder) {
-                    await order.stopLoss(symbol, marketOrder[0].amount, stop, tradeDirection);
+                const {stops} = await strategy.getStopLossTarget(data, tradeDirection);
+                if(stops[0].price != -1 && marketOrder) {
+                    await order.stopLoss(symbol, marketOrder[0].amount, stops[0].price, tradeDirection);
                 }
 
                 if(marketOrder) {

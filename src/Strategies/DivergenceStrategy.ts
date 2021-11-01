@@ -4,6 +4,7 @@ import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { Trend } from "../Consts/Trend";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
+import { LimitOrder } from "../Models/FuturePosition-interface";
 import { IStrategy } from "../Models/Strategy-interface";
 import { RenkoDynamicExit } from "../Orders/RenkoDynamicExit";
 import { CandlestickPatterns } from "../Technicals/CandlestickPatterns";
@@ -59,7 +60,7 @@ export class DivergenceStrategy implements IStrategy {
 		return TradeDirection.HOLD;
 	}
 
-	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stop: number; target: number; }> {
+	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
 		const entry: number = data[data.length-1][Candlestick.CLOSE];
 		let stopLoss: number = -1;
 		if(direction == TradeDirection.BUY) {
@@ -67,7 +68,7 @@ export class DivergenceStrategy implements IStrategy {
 		} else if(direction == TradeDirection.SELL) {
 			stopLoss = entry + (this.stopLossBricks * this.brickSize);
 		}
-        return {stop: stopLoss, target: -1};
+        return {stops: [{price: stopLoss, amount: 1}], targets: [{price: -1, amount: 1}]};
 	}
 
 	async dynamicExit(exchange: Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined> {

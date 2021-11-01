@@ -8,6 +8,7 @@ import { PivotExtremes } from "../Technicals/PivotExtremes";
 import { StopLoss } from "../Orders/StopLoss";
 import { Timeframe } from "../Consts/Timeframe";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
+import { LimitOrder } from "../Models/FuturePosition-interface";
 
 export class FibRetracementStrategy implements IStrategy {
     usesDynamicExit: boolean = false;
@@ -16,8 +17,7 @@ export class FibRetracementStrategy implements IStrategy {
     private max_lookback: number = 30;
 
     async calculate(data: OHLCV[], optional?: any): Promise<TradeDirection> {
-        const marketTrend: MarketTrend = new MarketTrend();
-        const trend: Trend = await marketTrend.tripleSMA(data);
+        const trend: Trend = await MarketTrend.tripleSMA(data);
         
         let indexLow = -1;
         let indexHigh = -1;
@@ -117,7 +117,7 @@ export class FibRetracementStrategy implements IStrategy {
         return TradeDirection.HOLD;
     }
 
-    async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stop: number; target: number; }> {
+    async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
         return StopLoss.atr(data, data[data.length-1][Candlestick.CLOSE], direction)
     }
 

@@ -15,6 +15,7 @@ export class RMA {
 		for(let i = length - 1; i < data.length; i++) {
 			sum.push(alpha * data[i] + (1 - alpha) * sum[sum.length-1]);
 		}
+		sum.shift();
 		return sum;
 	}
 }

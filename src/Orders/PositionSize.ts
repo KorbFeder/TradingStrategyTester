@@ -1,5 +1,18 @@
+import { LimitOrder } from "../Models/FuturePosition-interface";
+
 export class PositionSize {
-    static calculate(risk: number, capital: number, entry: number, stopLoss: number) {
+    static calculate(capital: number, entry: number, stopLosses: LimitOrder[]): number {
+        let envRisk = process.env.RISK;
+        let risk = 0.02;
+        if(envRisk) {
+            risk = parseFloat(envRisk);
+        }
+        const totalSize = stopLosses.map(stop => stop.amount).reduce((prev, curr) => prev + curr);
+        let stopLoss: number = -1
+        for(let stop of stopLosses) {
+            stopLoss += (stop.amount / totalSize) * stop.price
+        }
+
         if(risk > 1 || risk < 0) {
             throw "risk has to be between 1 and 0";
         }

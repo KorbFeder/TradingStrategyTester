@@ -31,6 +31,11 @@ export class Divergence {
 		return this.divergence(data, smoothRsi, this.oversold, this.overbought);
 	}
 
+	public static hiddenRsi(data: OHLCV[]) {
+		const smoothRsi = SmoothRsi.calculate(data.map(data => data[Candlestick.CLOSE]), this.rsiLength);
+		return this.hiddenDivergence(data, smoothRsi, 50, 50);
+	}
+
 	public static macd(data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
 		const macdInput: MACDInput = {
 			values: data.map((d) => d[Candlestick.CLOSE]),
@@ -112,6 +117,53 @@ export class Divergence {
 			}
 		}
 		return {index: 0, tradeDirection: TradeDirection.HOLD};
+	}
+
+	public static hiddenDivergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0, length = 14) {
+		const lookBackCandles = PIVOT_LENGTH * 2 + length;
+		const endOfOsc: number[] = osc.slice(osc.length - lookBackCandles, osc.length);
+		const endOfData: OHLCV[] = data.slice(data.length - lookBackCandles, data.length);
+		const {highs, lows } = PivotExtremes.oscAsBoolArray(osc, this.pivotLength);		
+		const highPivots = highs.slice(highs.length - lookBackCandles, highs.length);
+		const lowPivots = lows.slice(lows.length - lookBackCandles, lows.length);
+
+		for(let i = endOfData.length - 1; i >= 17; i--) {
+			if(highPivots[i]) {
+				// search for next high
+				let maxRsiRange = i - length;
+				if(maxRsiRange < 0) {
+					maxRsiRange = 0;
+				}
+				for(let u = i - 1; u >= maxRsiRange; u--) {
+					if(highPivots[u]) {
+						if(endOfData[i][Candlestick.CLOSE] < endOfData[u][Candlestick.CLOSE] && endOfOsc[i] > endOfOsc[u]) {
+							if(oscMax < endOfOsc[u]) {
+								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.SELL};
+							}
+						}
+					}
+				}
+			}
+
+			if(lowPivots[i]) {
+				// search for next low
+				let maxRsiRange = i - length;
+				if(maxRsiRange < 0) {
+					maxRsiRange = 0;
+				}
+				for(let u = i - 1; u >= maxRsiRange; u--) {
+					if(lowPivots[u]) {
+						if(endOfData[i][Candlestick.CLOSE] > endOfData[u][Candlestick.CLOSE] && endOfOsc[i] < endOfOsc[u]) {
+							if(oscMin > endOfOsc[u]) {
+								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.BUY};
+							}
+						}
+					}
+				}
+			}
+		}
+		return {index: 0, tradeDirection: TradeDirection.HOLD};
+	
 	}
 
 	public static divergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0, length: number = 14): {index: number, tradeDirection: TradeDirection} {

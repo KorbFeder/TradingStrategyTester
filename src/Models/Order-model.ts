@@ -1,4 +1,5 @@
 import mongoose, {Schema, Document} from "mongoose";
+import { LimitOrder } from "./FuturePosition-interface";
 
 export interface IOrder extends Document {
     _id: mongoose.Types.ObjectId,
@@ -6,8 +7,8 @@ export interface IOrder extends Document {
     buyPrice: number;
     orderType: string;
     amount: number;
-    stop: number;
-    target: number;
+    stops: LimitOrder[];
+    targets: LimitOrder[];
     instance: number;
 }
 
@@ -17,8 +18,8 @@ const OrderSchema: Schema = new Schema({
     buyPrice: {type: Number, required: true},
     symbol: {type: String, required: true},
     orderType: {type: String, required: true},
-    stop: {type: Number, required: true},
-    target: {type: Number, required: true},
+    stops: {type: Array, required: true},
+    targets: {type: Array, required: true},
     instance: {type: Number, required: true},
 }, 
 {

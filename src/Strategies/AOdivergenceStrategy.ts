@@ -9,6 +9,7 @@ import { Renko } from "../Technicals/Renko";
 import { StopLoss } from "../Orders/StopLoss";
 import { Timeframe } from "../Consts/Timeframe";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
+import { LimitOrder } from "../Models/FuturePosition-interface";
 
 export class AOdivergenceStrategy implements IStrategy {
 	usesDynamicExit: boolean = false;
@@ -29,7 +30,7 @@ export class AOdivergenceStrategy implements IStrategy {
 		return TradeDirection.HOLD;
 	}
 
-	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stop: number; target: number; }> {
+	async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
         return StopLoss.atr(data, data[data.length-1][Candlestick.CLOSE], direction);
 	}
 

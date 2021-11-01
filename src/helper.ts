@@ -1,5 +1,6 @@
 import * as ccxt from "ccxt";
 import { ATR } from "technicalindicators";
+import { Candlestick } from "./Consts/Candlestick";
 import { Timeframe } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { IStrategy } from "./Models/Strategy-interface";
@@ -89,8 +90,39 @@ export function CrossUpside(lineA: number[], lineB: number[]): boolean {
 }
 
 export function change(data: number[], i: number): number {
-		if(i - 1 < 0) {
-			throw 'i would be negative for array in change function';
-		}
-		return data[i] - data[i-1];
-	}
+    if(i - 1 < 0) {
+        return data[i];
+    }
+    return data[i] - data[i-1];
+}
+
+export function highest(data: number[]) {
+    let max = Number.MIN_VALUE;
+    for(let d of data) {
+        if(d > max) {
+            max = d;
+        }
+    }
+    return max;
+}
+
+export function lowest(data: number[]) {
+    let min = Number.MAX_VALUE;
+    for(let d of data) {
+        if(d < min) {
+            min = d;
+        }
+    }
+    return min;
+}
+
+export function trueRange(data: ccxt.OHLCV[]): number[] {
+    const result: number[] = Array<number>(data.length);
+    for(let i = data.length-1; i > 1; i--) {
+        const candleDiff = Candlestick.high(data, i) - Candlestick.low(data, i);
+        const lastCandleAndHighDiff = Math.abs(Candlestick.high(data, i) - Candlestick.close(data, i-1));
+        const lastCandleAndLowDiff = Math.abs(Candlestick.low(data, i) - Candlestick.close(data, i-1));
+        result[i] = Math.max(Math.max(candleDiff, lastCandleAndHighDiff), lastCandleAndLowDiff);
+    }
+    return result;
+}

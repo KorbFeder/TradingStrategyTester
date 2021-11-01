@@ -1,7 +1,7 @@
 import * as ccxt from "ccxt";
 import { config } from "dotenv";
-import { mfi, RSI } from "technicalindicators";
-import { Timeframe } from "./Consts/Timeframe";
+import {Lowest, mfi, RSI } from "technicalindicators";
+import { calcStartingTimestamp, Timeframe } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { Database } from "./Database";
 import { CandlestickPatterns } from "./Technicals/CandlestickPatterns";
@@ -11,7 +11,6 @@ import { BollingerBandsStrategy } from "./Strategies/BollingsBandsStrategy";
 import { FibRetracementStrategy } from "./Strategies/FibRetracementStrategy";
 import { MaCrossStrategy } from "./Strategies/MaCrossStrategy";
 import { SimpleMomentumStrategy } from "./Strategies/SimpleMomentumStrategy";
-import { Backtesting, TestResult } from "./Testing/Backtesting";
 import { Trading } from "./Tradeing";
 import { Renko } from "./Technicals/Renko";
 import { KeySRLevels } from "./Technicals/KeySRLevels";
@@ -25,7 +24,6 @@ import { Orders } from "./Orders/Orders";
 import { FuturePosition } from "./Models/FuturePosition-interface";
 import { RenkoEmaStrategy } from "./Strategies/RenkoEmaStrategy";
 import { SmoothRsi } from "./Technicals/SmoothRsi";
-import { FrontTesting } from "./Testing/FrontTesting";
 import { DivergenceStrategy } from "./Strategies/DivergenceStrategy";
 import { WilliamsFractals } from "./Technicals/WilliamsFractals";
 import { SmaFractialsStrategy } from "./Strategies/SmaFractalsStrategy";
@@ -36,10 +34,38 @@ import { MFI } from "./Technicals/MFI";
 import { CciDivergenceStrategy } from "./Strategies/CciDivergenceStrategy";
 import { AdlDivergenceStrategy } from "./Strategies/AdlDivergenceStrategy";
 import { MacdDivergenceStrategy } from "./Strategies/MacdDivergenceStrategy";
+import { ADXInput, ADXOutput } from "technicalindicators/declarations/directionalmovement/ADX";
+import { Candlestick } from "./Consts/Candlestick";
+import { IStrategy } from "./Models/Strategy-interface";
+import { DivergenceTrendStrategy } from "./Strategies/DivergenceTrendStrategy";
+import { ApiServer } from "./ApiEndpoint/ApiServer";
+import { HiddenRsiStochStrategy } from "./Strategies/HiddenRsiStochStrategy";
+import * as yargs from 'yargs';
+import { json } from "express";
+import { ITradingAccount } from "./Models/TradingAccount-interface";
+import { Backtesting } from "./Testing/Backtesting";
+import { TestAccount } from "./Testing/TestAccount";
+import { ManageDynMultiPostionOffline } from "./Orders/ManageDynMultiPositionOffline";
+import { ManageMultipartPostionOffline } from "./Orders/ManageMultipartPositionOffline";
+import { ChoppinessIndex } from "./Technicals/ChoppinessIndex";
+import { ConsolidationFindingStrategy } from "./Strategies/ConsolidationFindingStrategy";
+import { Screening } from "./Screening";
+import { ChoppinessIndexScreener } from "./Screeners/ChoppinessIndexScreener";
+import { MarketStructureScreener } from "./Screeners/MarketStructureScreener";
+import { FindLiqMoves } from "./Technicals/FindLiqMoves";
+import { LiqMoveScreener } from "./Screeners/LiqMoveScreener";
+import { ADX } from "./Technicals/ADX";
+import { TrendType } from "./Technicals/TrendType";
+import { Alert } from "./Alerts/Alert";
+import { Cli } from "./CLI/Cli";
+import { Delta } from "./Technicals/Delta";
+import { HurstExponent } from "./Technicals/MarketStructure/HurstExponent";
+import { MarketStructureBackTest } from "./Testing/MarketStructureBackTest";
 
 const db: Database = new Database()
 
 config();
+
 
 const exchangeId = 'ftx';
 const exchangeClass = ccxt[exchangeId];
@@ -56,11 +82,64 @@ exchange.options = {
     defaultMarket: 'futures'
 };
 
+//const apiServer: ApiServer = new ApiServer(exchange);
+//apiServer.startServer();
+
 async function run(runningInstance: number = 0) {
     await db.connect(runningInstance);
 
-    const data: ccxt.OHLCV[] = await exchange.fetchOHLCV('BTC-PERP', Timeframe.h4);
-    const a = MFI.calculate(data);
+    //const data = await exchange.fetchOHLCV('BTC-PERP', Timeframe.m1);
+    //const hurst = new HurstExponent();
+    //const marketStructureTest = new MarketStructureBackTest(exchange);
+    //const result = marketStructureTest.testAll(hurst);
+
+    //const delta = new Delta();
+    //delta.getFootprint(exchange, 'BTC-PERP', Timeframe.m15, 10, new Date(2021, 9, 15, 0, 15).getTime(), new Date(2021, 9, 16, 1, 0).getTime());
+
+    //onst trades = await  exchange.fetchTrades('BTC-PERP', undefined, undefined, {'start_time': new Date(2021, 1, 15, 9).getTime() / 1000, 'end_time': new Date(2021, 1, 15, 10).getTime() / 1000});
+    //const date = new Date(trades[0].datetime);
+    //const pastTrades: ccxt.Trade[] = [];
+    //while(true) {
+    //    const trades = await  exchange.fetchTrades('LTC-PERP');
+    //    for(let i = 0; i < trades.length; i++) {
+    //        if(!pastTrades.map((t) => t.id).includes(trades[i].id)) {
+    //            pastTrades.push(trades[i]);
+    //            console.log(trades[i].amount);
+    //        }
+    //    }
+    //}
+
+    exchange.private
+    const cli = new Cli(exchange, db);
+    await cli.start();
+    
+    //const ci = new ConsolidationFindingStrategy();
+    //const managePosition = new ManageDynMultiPostionOffline();
+
+    //const backtest = new Backtesting(exchange, db, 'test1', managePosition);
+    //const res = await backtest.testAll(Timeframe.m5, ci);
+    //res.printStatistics();
+    //const data: ccxt.OHLCV[] = await exchange.fetchOHLCV('BNB-PERP', Timeframe.h4);
+    //const input: ADXInput = {
+    //    high: Candlestick.high_all(data),
+    //    low: Candlestick.low_all(data),
+    //    close: Candlestick.close_all(data),
+    //    period: 14
+    //};
+
+    //const adxResult: ADXOutput[] = ADX.calculate(input);
+    //const adxCurrent = adxResult[adxResult.length-1];
+    //const trendType = TrendType.calculate(data);
+    
+
+
+    //const liqMoveScreener = new LiqMoveScreener(50);
+    //const chop = new ChoppinessIndexScreener();
+    //const structure: MarketStructureScreener = new MarketStructureScreener();
+    //const screener: Screening = new Screening(exchange, chop);
+    //await screener.start();
+
+   
     //const a = WilliamsFractals.calculate(data);
 
     //console.log('test');
@@ -68,29 +147,18 @@ async function run(runningInstance: number = 0) {
     //const level = await key.renko('BTC-PERP', Timeframe.m1);
     //const trend = MarketTrend.renko(data);
     //saveDataASFile(data);
-    const backTest: Backtesting = new Backtesting(exchange, db);
 
     //const div = new DivergenceStrategy();
     //const renkoEma = new RenkoEmaStrategy();
-    const mfiStrat = new MfiDivergenceStrategy();
-    const rsiStrat = new RsiDivergenceStrategy();
-    const cciStrat = new CciDivergenceStrategy();
-    const adlStrat = new AdlDivergenceStrategy();
-    const macdStrat = new MacdDivergenceStrategy();
-    //SingleTest.start(exchange, 'BTC-PERP', Timeframe.m5, new Date(2021, 5, 22, 12, 10, 0, 0), rsiStrat, TradeDirection.BUY);
-    //const divResult: TestResult[] = await backTest.testAll(Timeframe.m5, div, 'Divergence Strategy')
-    const tf: Timeframe = Timeframe.m1;
-    const mfiDiv: TestResult = await backTest.testAll(tf, mfiStrat, 'MFI Div');
-    const rsiDiv: TestResult = await backTest.testAll(tf, rsiStrat, 'RSI Div');
-    const cciDiv: TestResult = await backTest.testAll(tf, cciStrat, 'CCI Div');
-    const adlDiv: TestResult = await backTest.testAll(tf, adlStrat, 'ADL Div');
-    const macdDiv: TestResult = await backTest.testAll(tf, macdStrat, 'MACD Div');
 
-    print(mfiDiv, 'mfi');
-    print(rsiDiv, 'rsi');
-    print(cciDiv, 'cci');
-    print(adlDiv, 'adl');
-    print(macdDiv, 'macd');
+//    const startingTime = calcStartingTimestamp(Timeframe.h4, 1589875200000, 500);
+//    console.log(startingTime);
+//    const data: ccxt.OHLCV[] = await exchange.fetchOHLCV('BTC-PERP', Timeframe.h4, startingTime, 500);
+//
+//    const {tradeDirection} = Divergence.hiddenRsi(data);
+//
+
+
     //console.log(divResult);
     //console.log(renkoResult);
     //const liveTesting0: FrontTesting = new FrontTesting(exchange, Timeframe.m5, renkoEma, renkoEma, 0);
@@ -101,10 +169,6 @@ async function run(runningInstance: number = 0) {
     //await tradeing.trade();
 }
 
-function print(rsiDiv: TestResult, name: string) {
-    console.log(name, 'wins:', rsiDiv.winsLong + rsiDiv.winsShort, 'loses: ', rsiDiv.losesLong + rsiDiv.losesShort, 'winrate:', 
-        (rsiDiv.winsLong + rsiDiv.winsShort) / (rsiDiv.losesLong + rsiDiv.losesShort + rsiDiv.winsLong + rsiDiv.winsShort));
-}
 
 run(0);
 

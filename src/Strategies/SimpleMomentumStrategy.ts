@@ -7,6 +7,7 @@ import { MarketTrend } from "../Technicals/MarketTrend";
 import { StopLoss } from "../Orders/StopLoss";
 import { Timeframe } from "../Consts/Timeframe";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
+import { LimitOrder } from "../Models/FuturePosition-interface";
 
 export class SimpleMomentumStrategy implements IStrategy {
     direction: TradeDirection = TradeDirection.HOLD;
@@ -17,8 +18,7 @@ export class SimpleMomentumStrategy implements IStrategy {
     async calculate(data: OHLCV[], optional: any): Promise<TradeDirection> {
         const macdStrat = new MacdStrategy();
         const macd = await macdStrat.calculate(data);
-        const marketTrend = new MarketTrend();
-        const trend: Trend = await marketTrend.tripleSMA(data);
+        const trend: Trend = await MarketTrend.tripleSMA(data);
         if(macd == TradeDirection.BUY && trend == Trend.UP) {
             return TradeDirection.BUY;
         } 
@@ -28,7 +28,7 @@ export class SimpleMomentumStrategy implements IStrategy {
         return TradeDirection.HOLD;
     }
 
-    async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stop: number; target: number; }> {
+    async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
         return StopLoss.atr(data, data[data.length-1][4], direction)
     }
 
