@@ -52,4 +52,34 @@ export class StopLoss {
             throw "trade direction is not specified";
         }
     }
+
+    static defaultAtr(data: OHLCV[], buyPrice: number, direction: TradeDirection): {stops: LimitOrder[], targets: LimitOrder[]} {
+        const atrInput: ATRInput = {
+            period: 14,
+            low: data.map((d) => d[3]),
+            high: data.map((d) => d[2]),
+            close: data.map((d) => d[4]),
+        };
+        const atrResult = ATR.calculate(atrInput);
+        const atr = atrResult[atrResult.length-1];
+        if(direction == TradeDirection.BUY) {
+            return {
+                stops: [
+                    {price: buyPrice - (this.atrMultiplier * atr), amount: 1}
+                ], 
+                targets: [
+                    {price: buyPrice + (this.atrMultiplier * this.riskRewardRatio * atr), amount: 1}, 
+                ]};
+        } else if(direction == TradeDirection.SELL) {
+            return {
+                stops: [
+                    {price: buyPrice + (this.atrMultiplier * atr), amount: 1}
+                ], 
+                targets: [
+                    {price: buyPrice - (this.atrMultiplier * 2 * this.riskRewardRatio * atr), amount: 1}, 
+                ]};
+        } else {
+            throw "trade direction is not specified";
+        }
+    }
 }

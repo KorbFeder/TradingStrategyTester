@@ -13,31 +13,33 @@ import { StopLoss } from "../Orders/StopLoss";
 
 export class MaCrossStrategy implements IStrategy {
     usesDynamicExit: boolean = false;
+
+    constructor(private fastMa: number, private slowMa: number) {}
     
     async calculate(data: OHLCV[], optional?: any): Promise<TradeDirection> {
-        let sma50: number[] = [];
-        let sma200: number[] = [];
-        for(let i = 10; i >= 0; i--) {
-            const sma50Input: MAInput = {
-                period: 50,
-                values: data.slice(data.length - 50 - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
+        let fast: number[] = [];
+        let slow: number[] = [];
+
+        for(let i = 2; i > 0; i--) {
+            const fastInput: MAInput = {
+                period: this.fastMa,
+                values: data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
             }
-            const sma200Input: MAInput = {
-                period: 200,
-                values: data.slice(data.length - 200 - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
+            const slowInput: MAInput = {
+                period: this.slowMa,
+                values: data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
             }
 
-            sma50 = sma50.concat(SMA.calculate(sma50Input));
-            sma200 = sma200.concat(SMA.calculate(sma200Input));
+            fast = fast.concat(SMA.calculate(fastInput));
+            slow = slow.concat(SMA.calculate(slowInput));
         }
         
-        
-        if(CrossUpside(sma50, sma200)) {
+        if(CrossUpside(fast, slow)) {
             // gold cross
             return TradeDirection.BUY;
         }
 
-        if(CrossUpside(sma200, sma50)) {
+        if(CrossUpside(slow, fast)) {
             // death cross
             return TradeDirection.SELL;
         }        
@@ -45,7 +47,7 @@ export class MaCrossStrategy implements IStrategy {
     }
 
     async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
-        return StopLoss.atr(data, data[data.length-1][4], direction)
+        return StopLoss.defaultAtr(data, data[data.length-1][4], direction);
     }
 
 	async dynamicExit(exchange: Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined> {

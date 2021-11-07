@@ -43,7 +43,6 @@ import { HiddenRsiStochStrategy } from "./Strategies/HiddenRsiStochStrategy";
 import * as yargs from 'yargs';
 import { json } from "express";
 import { ITradingAccount } from "./Models/TradingAccount-interface";
-import { Backtesting } from "./Testing/Backtesting";
 import { TestAccount } from "./Testing/TestAccount";
 import { ManageDynMultiPostionOffline } from "./Orders/ManageDynMultiPositionOffline";
 import { ManageMultipartPostionOffline } from "./Orders/ManageMultipartPositionOffline";
@@ -61,6 +60,9 @@ import { Cli } from "./CLI/Cli";
 import { Delta } from "./Technicals/Delta";
 import { HurstExponent } from "./Technicals/MarketStructure/HurstExponent";
 import { MarketStructureBackTest } from "./Testing/MarketStructureBackTest";
+import { fetchWithDate } from "./helpers/fetchWithDate";
+import { BacktestConfig, Backtesting } from "./Testing/Backtesting";
+import { ManageDefaultPosition } from "./Orders/ManageDefaultPositionOffline";
 
 const db: Database = new Database()
 
@@ -87,6 +89,20 @@ exchange.options = {
 
 async function run(runningInstance: number = 0) {
     await db.connect(runningInstance);
+    const backtest = new Backtesting(exchange, new ManageDefaultPosition());
+    const config: BacktestConfig = {
+        startDate: new Date(Date.UTC(2021, 9, 13)),
+        endDate: new Date(Date.UTC(2021, 9, 14)),
+        symbol: 'BTC-PERP',
+        timeframe: Timeframe.h1,
+        strategy: new MaCrossStrategy(11, 25)
+    };
+    const perf = backtest.start(config);
+    console.log(perf);
+
+//    const a = await fetchWithDate(exchange, 'BTC-PERP', Timeframe.h1, new Date(2021, 4, 4, 11), new Date(2021, 4, 4, 12));
+//    const start = new MaCrossStrategy(50, 200);
+//    const result = await start.calculate(a);
 
     //const data = await exchange.fetchOHLCV('BTC-PERP', Timeframe.m1);
     //const hurst = new HurstExponent();
@@ -109,9 +125,8 @@ async function run(runningInstance: number = 0) {
     //    }
     //}
 
-    exchange.private
-    const cli = new Cli(exchange, db);
-    await cli.start();
+    //const cli = new Cli(exchange, db);
+    //await cli.start();
     
     //const ci = new ConsolidationFindingStrategy();
     //const managePosition = new ManageDynMultiPostionOffline();
