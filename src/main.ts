@@ -1,6 +1,6 @@
 import * as ccxt from "ccxt";
 import { config } from "dotenv";
-import {Lowest, mfi, RSI } from "technicalindicators";
+import { Lowest, mfi, RSI } from "technicalindicators";
 import { calcStartingTimestamp, Timeframe } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { Database } from "./Database";
@@ -63,6 +63,7 @@ import { MarketStructureBackTest } from "./Testing/MarketStructureBackTest";
 import { fetchWithDate } from "./helpers/fetchWithDate";
 import { BacktestConfig, Backtesting } from "./Testing/Backtesting";
 import { ManageDefaultPosition } from "./Orders/ManageDefaultPositionOffline";
+import { ATR } from "./Technicals/ATR";
 
 const db: Database = new Database()
 
@@ -84,20 +85,32 @@ exchange.options = {
     defaultMarket: 'futures'
 };
 
+const coinbaseId = 'coinbasepro'
+const coinbaseExchangeClass = ccxt[coinbaseId];
+const coinbase = new coinbaseExchangeClass({
+    'timeout': 30000,
+    'enableRateLimit': true,
+});
+
 //const apiServer: ApiServer = new ApiServer(exchange);
 //apiServer.startServer();
 
 async function run(runningInstance: number = 0) {
+    //const data = await coinbase.fetchOHLCV('BTC/USD', Timeframe.h1, undefined, 163);
+    //const result = ATR.calcNt(data, 14);
+
     await db.connect(runningInstance);
-    const backtest = new Backtesting(exchange, new ManageDefaultPosition());
+    const backtest = new Backtesting(coinbase, new ManageDefaultPosition());
     const config: BacktestConfig = {
-        startDate: new Date(Date.UTC(2021, 9, 13)),
-        endDate: new Date(Date.UTC(2021, 9, 14)),
-        symbol: 'BTC-PERP',
+        startDate: new Date(Date.UTC(2021, 9, 1)),
+        endDate: new Date(Date.UTC(2021, 10, 1)),
+        symbol: 'BTC/USD',
         timeframe: Timeframe.h1,
-        strategy: new MaCrossStrategy(11, 25)
+        strategy: new MaCrossStrategy(11, 25),
+        includeComissions: false,
+        minBarsForIndicator: 0
     };
-    const perf = backtest.start(config);
+    const perf = await backtest.start(config);
     console.log(perf);
 
 //    const a = await fetchWithDate(exchange, 'BTC-PERP', Timeframe.h1, new Date(2021, 4, 4, 11), new Date(2021, 4, 4, 12));

@@ -87,7 +87,7 @@ export class Trading implements IBot {
                 const marketOrder = await orderType.defaultMarketOrder(symbol, data[data.length-1][Candlestick.CLOSE], tradeDirection, this.timeframe);
 
                 // emergency stopLoss if there is one
-                const {stops} = await strategy.getStopLossTarget(data, tradeDirection);
+                const {stops} = await strategy.getStopLossTarget(data, Candlestick.close(data), tradeDirection);
                 if(stops[0].price != -1 && marketOrder) {
                     await order.stopLoss(symbol, marketOrder[0].amount, stops[0].price, tradeDirection);
                 }

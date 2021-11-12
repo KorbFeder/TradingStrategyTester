@@ -88,7 +88,7 @@ export class _Backtesting {
                 throw 'no dynamic exit specified';
             }
         } else {
-            const {stops, targets} = await strategy.getStopLossTarget(testData, tradeDirection);
+            const {stops, targets} = await strategy.getStopLossTarget(testData, Candlestick.close(testData), tradeDirection);
             // calcualte size of the position
             const size = await this.account.calculatePositionSize(stops, Candlestick.close(testData));
             stops.forEach(stop => stop.amount = stop.amount * size);

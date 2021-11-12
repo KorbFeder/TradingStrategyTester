@@ -2,6 +2,7 @@ import { Exchange, OHLCV } from "ccxt";
 import { CrossUp, SMA } from "technicalindicators";
 import { MAInput } from "technicalindicators/declarations/moving_averages/SMA";
 import { CrossInput } from "technicalindicators/declarations/Utils/CrossUp";
+import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { CrossUpside } from "../helper";
@@ -16,11 +17,11 @@ export class MaCrossStrategy implements IStrategy {
 
     constructor(private fastMa: number, private slowMa: number) {}
     
-    async calculate(data: OHLCV[], optional?: any): Promise<TradeDirection> {
+    async calculate(data: OHLCV[], exchange?: Exchange, symbol?: string, timeframe?: Timeframe, since?: number, limit?: number): Promise<TradeDirection> {
         let fast: number[] = [];
         let slow: number[] = [];
 
-        for(let i = 2; i > 0; i--) {
+        for(let i = 1; i >= 0; i--) {
             const fastInput: MAInput = {
                 period: this.fastMa,
                 values: data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
@@ -33,7 +34,7 @@ export class MaCrossStrategy implements IStrategy {
             fast = fast.concat(SMA.calculate(fastInput));
             slow = slow.concat(SMA.calculate(slowInput));
         }
-        
+
         if(CrossUpside(fast, slow)) {
             // gold cross
             return TradeDirection.BUY;
@@ -46,8 +47,8 @@ export class MaCrossStrategy implements IStrategy {
         return TradeDirection.HOLD;
     }
 
-    async getStopLossTarget(data: OHLCV[], direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
-        return StopLoss.defaultAtr(data, data[data.length-1][4], direction);
+    async getStopLossTarget(data: OHLCV[], entryPrice: number, direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
+        return StopLoss.defaultAtr(data, entryPrice, direction);
     }
 
 	async dynamicExit(exchange: Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined> {

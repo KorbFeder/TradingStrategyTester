@@ -37,7 +37,7 @@ export class ManageDefaultPosition implements ManagePosition {
 							exitPrice: position.stopLosses[stop_index].price, 
 							lastSize,
 							symbol: position.symbol, 
-							firstEntry: Candlestick.close(confirmationData, 0),
+							firstEntry: position.price,
 						};
 					}
 				} else if(Candlestick.high(confirmationData, i) > position.profitTargets[target_index].price) {
@@ -56,7 +56,7 @@ export class ManageDefaultPosition implements ManagePosition {
 							date: new Date(Candlestick.timestamp(confirmationData, i)), 
 							breakEvenPrice: avgFill, 
 							exitPrice: position.profitTargets[target_index].price, 
-							firstEntry: Candlestick.close(confirmationData, 0),
+							firstEntry: position.price,
 							lastSize,
 							symbol: position.symbol
 						};
@@ -78,7 +78,7 @@ export class ManageDefaultPosition implements ManagePosition {
 							date: new Date(Candlestick.timestamp(confirmationData, i)), 
 							breakEvenPrice: avgFill, 
 							exitPrice: position.stopLosses[stop_index].price, 
-							firstEntry: Candlestick.close(confirmationData, 0),
+							firstEntry: position.price,
 							lastSize,
 							symbol: position.symbol
 						};
@@ -98,13 +98,16 @@ export class ManageDefaultPosition implements ManagePosition {
 							date: new Date(Candlestick.timestamp(confirmationData, i)), 
 							breakEvenPrice: avgFill, 
 							exitPrice: position.profitTargets[target_index].price, 
-							firstEntry: Candlestick.close(confirmationData, 0),
+							firstEntry: position.price,
 							lastSize,
 							symbol: position.symbol
 						};
 					}
 				}
 			}
+
+			
+
 			if(stop_index >= position.stopLosses.length) {
 				throw 'not enough take stopLoss orders were set, there is still some position size over that has not been sold'
 			}
@@ -112,6 +115,33 @@ export class ManageDefaultPosition implements ManagePosition {
 				throw 'not enough take profit orders were set, there is still some position size over that has not been sold'
 			}
 		}	
+
+		// Exit position if the trade couldn't be finished by hitting a stop or target
+		if(position.tradeDirection == TradeDirection.BUY) {
+			return {
+				initialSize,
+				tradeDirection: position.tradeDirection, 
+				win: Candlestick.close(confirmationData) > position.price, 
+				date: new Date(Candlestick.timestamp(confirmationData)), 
+				breakEvenPrice: avgFill, 
+				exitPrice: Candlestick.close(confirmationData), 
+				firstEntry: position.price,
+				lastSize,
+				symbol: position.symbol
+			};
+		} else if(position.tradeDirection == TradeDirection.SELL) {
+			return {
+				initialSize,
+				tradeDirection: position.tradeDirection, 
+				win: Candlestick.close(confirmationData) < position.price, 
+				date: new Date(Candlestick.timestamp(confirmationData)), 
+				breakEvenPrice: avgFill, 
+				exitPrice: Candlestick.close(confirmationData), 
+				firstEntry: position.price,
+				lastSize,
+				symbol: position.symbol
+			};
+		}
 	}
 
 }

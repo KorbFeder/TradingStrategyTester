@@ -76,7 +76,7 @@ export class StopLoss {
                     {price: buyPrice + (this.atrMultiplier * atr), amount: 1}
                 ], 
                 targets: [
-                    {price: buyPrice - (this.atrMultiplier * 2 * this.riskRewardRatio * atr), amount: 1}, 
+                    {price: buyPrice - (this.atrMultiplier * this.riskRewardRatio * atr), amount: 1}, 
                 ]};
         } else {
             throw "trade direction is not specified";

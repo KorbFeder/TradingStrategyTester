@@ -30,7 +30,7 @@ export interface SinglePerformanceReport {
 	ratioAvgWinAvgLose: number;
 
 	maxConsecWinners: number;
-	maxConsecLosesrs: number;
+	maxConsecLosers: number;
 	largestWinningTrade: number;
 	largestLosingTrade: number;
 
