@@ -72,7 +72,8 @@ export class PerfReportHelper {
 			avgMFE: 0,
 			avgETD: 0,
 
-			trades: []
+			trades: [],
+			equityCurve: []
 		}
 
 		// deep cloning in case an array gets added to SinglePerformanceReport
@@ -99,6 +100,7 @@ export class PerfReportHelper {
 
 		this.calcProfitPerMonth(trades);
 		this.sharpeRatio(trades, SplitTimeInterval.DAY);
+		this.calcEquityCurve(trades);
 
 		return this.perfReport;
 	}
@@ -232,6 +234,33 @@ export class PerfReportHelper {
 		this.perfReport.allTrades.maxDrawdown = this.lowestProfit.all - this.highestProfit.all;
 		this.perfReport.longTrades.maxDrawdown = this.lowestProfit.long - this.highestProfit.long;
 		this.perfReport.shortTrades.maxDrawdown = this.lowestProfit.short - this.highestProfit.short;
+	}
+
+	private calcEquityCurve(trades: ITrade[]) {
+		const intervals: {date: Date, trades: ITrade[]}[] = this.splitTradesIntoTimeIntervals(trades, SplitTimeInterval.DAY);
+
+		let intervalProfitAll = 0;
+		let intervalProfitLong = 0;
+		let intervalProfitShort = 0;
+
+		for(let data of intervals) {
+			for(let trade of data.trades) {
+				const allFees = this.getFeesForTrade(trade);
+				if(trade.tradeDirection == TradeDirection.BUY) {
+					const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
+					intervalProfitLong += diff;
+					intervalProfitAll += diff;
+
+				} else if(trade.tradeDirection == TradeDirection.SELL) {
+					const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize - allFees;
+					intervalProfitAll += diff;
+					intervalProfitShort += diff;
+				}
+			}
+			this.perfReport.allTrades.equityCurve.push({equity: intervalProfitAll, date: data.date});
+			this.perfReport.longTrades.equityCurve.push({equity: intervalProfitShort, date: data.date});
+			this.perfReport.shortTrades.equityCurve.push({equity: intervalProfitLong, date: data.date});
+		}
 	}
 
 	private async sharpeRatio(trades: ITrade[], splitTimeInterval: SplitTimeInterval = SplitTimeInterval.MONTH) {

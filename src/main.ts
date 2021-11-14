@@ -105,10 +105,10 @@ async function run(runningInstance: number = 0) {
     
     //const backtest = new Backtesting(coinbase, new ManageDefaultPosition(), ManagementType.NORMAL);
     const config: BacktestConfig = {
-        startDate: new Date(Date.UTC(2021, 10, 10)),
-        endDate: new Date(Date.UTC(2021, 10, 11)),
+        startDate: new Date(Date.UTC(2021, 6, 10)),
+        endDate: new Date(Date.UTC(2021, 8, 11)),
         symbol: 'BTC/USD',
-        timeframe: Timeframe.m1,
+        timeframe: Timeframe.h1,
         strategy: new MaCrossStrategy(11, 25),
         includeComissions: false,
     };

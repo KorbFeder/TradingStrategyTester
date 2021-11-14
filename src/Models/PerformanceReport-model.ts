@@ -48,4 +48,5 @@ export interface SinglePerformanceReport {
 	avgETD: number;
 
 	trades: ITrade[];
+	equityCurve: {equity: number, date: Date}[];
 }

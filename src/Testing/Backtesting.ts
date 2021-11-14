@@ -30,9 +30,6 @@ export interface BacktestConfig {
 	includeComissions?: boolean;
 	// minium bars to trade, for indicator to calculate the value
 	minBarsForIndicator?: number;
-	// if closePosOnEntry true, positions are looked at with relation to open positions, 
-	// if false each trade will be independent of trades that follow afterwards
-	closePositionOnEntryOtherSide?: boolean;
 	barsRequiredToTrade?: number;
 }
 
@@ -49,7 +46,6 @@ export class Backtesting {
 	}
 
 	async start(config: BacktestConfig): Promise<PerformanceReport> {
-		const closePosOnEntry: boolean = config.closePositionOnEntryOtherSide ? config.closePositionOnEntryOtherSide : false;
 		const minBarsForIndicator: number = config.minBarsForIndicator ? config.minBarsForIndicator : MIN_BARS;
 		const barsRequiredToTrade: number = config.barsRequiredToTrade ? config.barsRequiredToTrade : 20;
 
