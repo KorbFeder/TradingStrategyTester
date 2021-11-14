@@ -41,6 +41,7 @@
     "mongoose": "^5.12.6",
     "node-notifier": "^10.0.0",
     "technicalindicators": "^3.1.0",
+    "ubique": "^0.5.1",
     "yargs": "^17.1.1"
   }
 }

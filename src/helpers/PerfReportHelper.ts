@@ -5,6 +5,7 @@ import { TradeDirection } from "../Consts/TradeDirection";
 import { PerformanceReport, SinglePerformanceReport } from "../Models/PerformanceReport-model";
 import { ITrade } from "../Models/TestAccount-model";
 import { BacktestConfig } from "../Testing/Backtesting";
+const ubique = require('ubique');
 
 export enum SplitTimeInterval {
 	MONTH = 0, DAY = 1
@@ -28,13 +29,6 @@ export class PerfReportHelper {
 	private maxConsecLosesShort = 0;
 	private currWinstreakShort = 0;
 	private currLoseStreakShort = 0;
-
-	private largestWinningAll = 0;
-	private largestLosingAll  = 0
-	private largestWinningLong = 0;
-	private largestLosingLong  = 0
-	private largestWinningShort = 0;
-	private largestLosingShort  = 0
 
 	constructor(private exchange: Exchange, private config: BacktestConfig) {
 		const singlePerfRep: SinglePerformanceReport = {
@@ -76,7 +70,9 @@ export class PerfReportHelper {
 
 			avgMAE: 0,
 			avgMFE: 0,
-			avgETD: 0
+			avgETD: 0,
+
+			trades: []
 		}
 
 		// deep cloning in case an array gets added to SinglePerformanceReport
@@ -90,6 +86,7 @@ export class PerfReportHelper {
 	
 
 	public async addToPerfRep(trades: ITrade[]): Promise<PerformanceReport> {
+		this.addTrades(trades);
 		for(let trade of trades) {
 			await this.addTradeToPerfRep(trade);
 			this.calcMaxDrawdown();
@@ -97,12 +94,19 @@ export class PerfReportHelper {
 			this.calcLargestTrades(trade);
 		}
 		this.calcProfitFactor();
-		this.sharpeRatio(trades);
 		this.avgTrades();
 		this.calcAvgTradesPerDay(trades);
+
 		this.calcProfitPerMonth(trades);
+		this.sharpeRatio(trades, SplitTimeInterval.DAY);
 
 		return this.perfReport;
+	}
+
+	private addTrades(trades: ITrade[]) {
+		this.perfReport.allTrades.trades = cloneDeep(trades);
+		this.perfReport.longTrades.trades = cloneDeep(trades).filter(trade => trade.tradeDirection == TradeDirection.BUY);
+		this.perfReport.shortTrades.trades = cloneDeep(trades).filter(trade => trade.tradeDirection == TradeDirection.SELL);
 	}
 
 	private async addTradeToPerfRep(trade: ITrade) {
@@ -230,36 +234,38 @@ export class PerfReportHelper {
 		this.perfReport.shortTrades.maxDrawdown = this.lowestProfit.short - this.highestProfit.short;
 	}
 
-	private async sharpeRatio(trades: ITrade[]) {
-		const allRois: number[] = [];
-		const longRois: number[] = [];
-		const shortRois: number[] = [];
+	private async sharpeRatio(trades: ITrade[], splitTimeInterval: SplitTimeInterval = SplitTimeInterval.MONTH) {
+		const intervals: {date: Date, trades: ITrade[]}[] = this.splitTradesIntoTimeIntervals(trades, splitTimeInterval);
+		let intervalProfitsAll: number[] = [];
+		let intervalProfitsLong: number[] = [];
+		let intervalProfitsShort: number[] = [];
 
-		for(let trade of trades) {
-			const allFees = this.getFeesForTrade(trade);
-			
-			if(trade.tradeDirection == TradeDirection.BUY) {
-				const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
-				const roi = diff / (trade.exitPrice * trade.initialSize);
-				longRois.push(roi);
-				allRois.push(roi);
-			} else if(trade.tradeDirection == TradeDirection.SELL) {
-				const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize - allFees;
-				const roi = diff / (trade.exitPrice * trade.initialSize);
-				shortRois.push(roi);
-				allRois.push(roi);
+		let intervalProfitAll = 0;
+		let intervalProfitLong = 0;
+		let intervalProfitShort = 0;
+
+		for(let data of intervals) {
+			for(let trade of data.trades) {
+				const allFees = this.getFeesForTrade(trade);
+				if(trade.tradeDirection == TradeDirection.BUY) {
+					const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
+					intervalProfitLong += diff;
+					intervalProfitAll += diff;
+
+				} else if(trade.tradeDirection == TradeDirection.SELL) {
+					const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize - allFees;
+					intervalProfitAll += diff;
+					intervalProfitShort += diff;
+				}
 			}
+			intervalProfitsAll.push(intervalProfitAll);
+			intervalProfitsLong.push(intervalProfitLong);
+			intervalProfitsShort.push(intervalProfitShort);
 		}
-		
-		if(allRois.length > 0) {
-			this.perfReport.allTrades.sharpe = mean(allRois) / std(allRois);
-		}
-		if(longRois.length > 0) {
-			this.perfReport.longTrades.sharpe = mean(longRois) / std(longRois);
-		}
-		if(shortRois.length > 0) {
-			this.perfReport.shortTrades.sharpe = mean(shortRois) / std(shortRois);
-		}
+
+		this.perfReport.allTrades.sharpe = this.perfReport.allTrades.profitPerMonth / std(intervalProfitsAll);
+		this.perfReport.longTrades.sharpe = this.perfReport.longTrades.profitPerMonth / std(intervalProfitsLong);
+		this.perfReport.shortTrades.sharpe = this.perfReport.shortTrades.profitPerMonth / std(intervalProfitsShort);
 	}
 
 	private avgTrades() {
@@ -284,15 +290,27 @@ export class PerfReportHelper {
 	private splitTradesIntoTimeIntervals(trades: ITrade[], splitInterval: SplitTimeInterval = SplitTimeInterval.DAY): {date: Date, trades: ITrade[]}[] {
 		// create an initalized array of all the dates between start and end date of the backtest
 		let dateIntervals: {date: Date, trades: ITrade[]}[] = [];
+		let startDateHours =new Date(this.config.startDate);
+		startDateHours.setUTCMinutes(0, 0, 0);
+		let startDateMonth = new Date(startDateHours);
+		startDateMonth.setUTCDate(1);
+
+		let endDateHours: Date = new Date(this.config.endDate);
+		endDateHours.setUTCMinutes(0, 0, 0);
+		let endDateMonths: Date = new Date(this.config.endDate);
+		endDateMonths.setUTCHours(0, 0, 0, 0);
+		endDateHours.setUTCHours(endDateHours.getUTCHours() + 1); 
+		endDateMonths.setUTCMonth(endDateMonths.getUTCMonth() + 1);
+
 		switch(splitInterval) {
 			case SplitTimeInterval.DAY: 
-				for(let dt =new Date(this.config.startDate); dt<=this.config.endDate; dt.setDate(dt.getDate()+1)){
-					dateIntervals.push({date: new Date(dt), trades: []});
+				for(; startDateHours <= endDateHours; startDateHours.setUTCDate(startDateHours.getUTCDate()+1)){
+					dateIntervals.push({date: new Date(startDateHours), trades: []});
 				}
 				break;
 			case SplitTimeInterval.MONTH:
-				for(let startDate = new Date(this.config.startDate); startDate <= this.config.endDate; startDate.setMonth(startDate.getMonth() + 1)) {
-					dateIntervals.push({date: new Date(startDate), trades: []});
+				for(; startDateMonth <= endDateMonths; startDateMonth.setUTCMonth(startDateMonth.getUTCMonth() + 1)) {
+					dateIntervals.push({date: new Date(startDateMonth), trades: []});
 				}
 				break;
 		}
@@ -306,6 +324,7 @@ export class PerfReportHelper {
 				}
 			}
 		}
+		dateIntervals.pop();
 		return dateIntervals;
 	}
 
@@ -317,11 +336,14 @@ export class PerfReportHelper {
 	}
 
 	private calcProfitPerMonth(trades: ITrade[]) {
-		const intervals: {date: Date, trades: ITrade[]}[] = this.splitTradesIntoTimeIntervals(trades, SplitTimeInterval.MONTH);
+		const month = 30.5;
 		const cumProf = this.cumulativeProfit(trades);
-		this.perfReport.allTrades.profitPerMonth = cumProf.cumAll / intervals.length; 
-		this.perfReport.longTrades.profitPerMonth = cumProf.cumLong / intervals.length;
-		this.perfReport.shortTrades.profitPerMonth = cumProf.cumShort / intervals.length;
+		const oneDay = 1000 * 60 * 60 * 24;
+		const dataLength = (month / Math.round(Math.abs((this.config.startDate.getTime() - this.config.endDate.getTime()) / oneDay)));
+
+		this.perfReport.allTrades.profitPerMonth = cumProf.cumAll * dataLength;
+		this.perfReport.longTrades.profitPerMonth = cumProf.cumLong * dataLength;
+		this.perfReport.shortTrades.profitPerMonth = cumProf.cumShort * dataLength;
 	}
 
 	private getFeesForTrade(trade: ITrade): number {
@@ -340,36 +362,36 @@ export class PerfReportHelper {
 		if(trade.tradeDirection == TradeDirection.BUY) {
 			const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
 			// only longs
-			if(diff > this.largestWinningLong) {
-				this.largestWinningLong = diff;
+			if(diff > this.perfReport.longTrades.largestWinningTrade) {
+				this.perfReport.longTrades.largestWinningTrade = diff;
 			} 
-			if(diff < this.largestLosingLong) {
-				this.largestLosingLong = diff;
+			if(diff < this.perfReport.longTrades.largestLosingTrade) {
+				this.perfReport.longTrades.largestLosingTrade = diff;
 			}
 
 			// all trades 
-			if(diff > this.largestWinningAll) {
-				this.largestWinningAll = diff;
+			if(diff > this.perfReport.allTrades.largestWinningTrade) {
+				this.perfReport.allTrades.largestWinningTrade = diff;
 			} 
-			if(diff < this.largestLosingAll) {
-				this.largestLosingAll = diff;
+			if(diff < this.perfReport.allTrades.largestLosingTrade) {
+				this.perfReport.allTrades.largestLosingTrade = diff;
 			}
 		} else if(trade.tradeDirection == TradeDirection.SELL) {
 			const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize - allFees;
 			// only shorts
-			if(diff > this.largestWinningShort) {
-				this.largestWinningShort = diff;
+			if(diff > this.perfReport.shortTrades.largestWinningTrade) {
+				this.perfReport.shortTrades.largestWinningTrade = diff;
 			}
-			if(diff < this.largestLosingShort) {
-				this.largestLosingShort = diff;
+			if(diff < this.perfReport.shortTrades.largestLosingTrade) {
+				this.perfReport.shortTrades.largestLosingTrade = diff;
 			}
 
 			// all trades
-			if(diff > this.largestWinningAll) {
-				this.largestWinningAll = diff;
+			if(diff > this.perfReport.allTrades.largestWinningTrade) {
+				this.perfReport.allTrades.largestWinningTrade = diff;
 			}
-			if(diff < this.largestLosingAll) {
-				this.largestLosingAll = diff;
+			if(diff < this.perfReport.allTrades.largestLosingTrade) {
+				this.perfReport.allTrades.largestLosingTrade = diff;
 			}
 		}
 	}
@@ -378,7 +400,7 @@ export class PerfReportHelper {
 		let cumAll = 0;
 		let cumLong = 0;
 		let cumShort = 0;
-		const point = 100;
+		const point = 1;
 		for(let trade of trades) {
 			const allFees = this.getFeesForTrade(trade);
 			if(trade.tradeDirection == TradeDirection.BUY) {

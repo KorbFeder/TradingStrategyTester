@@ -1,3 +1,5 @@
+import { ITrade } from "./TestAccount-model";
+
 export interface PerformanceReport {
 	allTrades: SinglePerformanceReport;
 	longTrades: SinglePerformanceReport;
@@ -44,4 +46,6 @@ export interface SinglePerformanceReport {
 	avgMAE: number;
 	avgMFE: number;
 	avgETD: number;
+
+	trades: ITrade[];
 }

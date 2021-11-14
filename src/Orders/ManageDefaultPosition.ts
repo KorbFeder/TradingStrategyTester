@@ -2,11 +2,11 @@ import { OHLCV } from "ccxt";
 import { Candlestick } from "../Consts/Candlestick";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { calcBreakEvenPrice, FuturePosition } from "../Models/FuturePosition-interface";
-import { ManagePosition } from "../Models/ManagePosition-interface";
+import { ManagementType, ManagePosition } from "../Models/ManagePosition-interface";
 import { ITrade } from "../Models/TestAccount-model";
 
-export class ManageDefaultCumPositionOffline {
-	private currentPosition: FuturePosition | undefined = undefined;
+export class ManageDefaultPosition implements ManagePosition {
+	public supportedManagementTypes: ManagementType[] = [ManagementType.NORMAL, ManagementType.NORMAL_INDIVIDUAL, ManagementType.IGNORE_NEW_TRADES];
 	private target_index: number = 0;
 	private stop_index: number = 0;
 	
@@ -105,5 +105,10 @@ export class ManageDefaultCumPositionOffline {
 		if(this.target_index >= position.profitTargets.length) {
 			throw 'not enough take profit orders were set, there is still some position size over that has not been sold'
 		}
+	}
+
+	reset() {
+		this.target_index = 0;
+		this.stop_index = 0;
 	}
 }

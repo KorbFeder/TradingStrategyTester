@@ -44,8 +44,6 @@ import * as yargs from 'yargs';
 import { json } from "express";
 import { ITradingAccount } from "./Models/TradingAccount-interface";
 import { TestAccount } from "./Testing/TestAccount";
-import { ManageDynMultiPostionOffline } from "./Orders/ManageDynMultiPositionOffline";
-import { ManageMultipartPostionOffline } from "./Orders/ManageMultipartPositionOffline";
 import { ChoppinessIndex } from "./Technicals/ChoppinessIndex";
 import { ConsolidationFindingStrategy } from "./Strategies/ConsolidationFindingStrategy";
 import { Screening } from "./Screening";
@@ -62,8 +60,12 @@ import { HurstExponent } from "./Technicals/MarketStructure/HurstExponent";
 import { MarketStructureBackTest } from "./Testing/MarketStructureBackTest";
 import { fetchWithDate } from "./helpers/fetchWithDate";
 import { BacktestConfig, Backtesting } from "./Testing/Backtesting";
-import { ManageDefaultPosition } from "./Orders/ManageDefaultPositionOffline";
 import { ATR } from "./Technicals/ATR";
+import { ManageDefaultPosition } from "./Orders/ManageDefaultPosition";
+import { ManagementType } from "./Models/ManagePosition-interface";
+import { SMAnt } from "./Technicals/SMAnt";
+import { ManageFixedBarExit } from "./Orders/ManageFixedBarExit";
+import { TestingPipeline } from "./Testing/TestingPipeline";
 
 const db: Database = new Database()
 
@@ -96,22 +98,37 @@ const coinbase = new coinbaseExchangeClass({
 //apiServer.startServer();
 
 async function run(runningInstance: number = 0) {
-    //const data = await coinbase.fetchOHLCV('BTC/USD', Timeframe.h1, undefined, 163);
+    //const data = await coinbase.fetchOHLCV('BTC/USD', Timeframe.h1, new Date(Date.UTC(2021, 10, 4)).getTime(), 143);
     //const result = ATR.calcNt(data, 14);
 
     await db.connect(runningInstance);
-    const backtest = new Backtesting(coinbase, new ManageDefaultPosition());
+    
+    //const backtest = new Backtesting(coinbase, new ManageDefaultPosition(), ManagementType.NORMAL);
     const config: BacktestConfig = {
-        startDate: new Date(Date.UTC(2021, 9, 1)),
-        endDate: new Date(Date.UTC(2021, 10, 1)),
+        startDate: new Date(Date.UTC(2021, 10, 10)),
+        endDate: new Date(Date.UTC(2021, 10, 11)),
         symbol: 'BTC/USD',
-        timeframe: Timeframe.h1,
+        timeframe: Timeframe.m1,
         strategy: new MaCrossStrategy(11, 25),
         includeComissions: false,
-        minBarsForIndicator: 0
     };
-    const perf = await backtest.start(config);
-    console.log(perf);
+    const pipeline = new TestingPipeline(coinbase);
+    const results = await pipeline.start(config, new ManageDefaultPosition(), ManagementType.NORMAL);
+    console.log(results);
+    //const perf = await backtest.start(config);
+    //console.log(perf);
+    //const backtest = new Backtesting(coinbase, new ManageFixedBarExit(12), ManagementType.ENTRY_TESTING);
+    //const config: BacktestConfig = {
+    //    startDate: new Date(Date.UTC(2021, 7, 1)),
+    //    endDate: new Date(Date.UTC(2021, 8, 30)),
+    //    symbol: 'BTC/USD',
+    //    timeframe: Timeframe.h1,
+    //    strategy: new MaCrossStrategy(11, 25),
+    //    includeComissions: false,
+    //};
+    //const perf = await backtest.start(config);
+    //console.log(perf);
+
 
 //    const a = await fetchWithDate(exchange, 'BTC-PERP', Timeframe.h1, new Date(2021, 4, 4, 11), new Date(2021, 4, 4, 12));
 //    const start = new MaCrossStrategy(50, 200);

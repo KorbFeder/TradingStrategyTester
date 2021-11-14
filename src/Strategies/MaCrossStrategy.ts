@@ -10,6 +10,7 @@ import { IDynamicExit } from "../Models/DynamicExit-interface";
 import { LimitOrder } from "../Models/FuturePosition-interface";
 import { IStrategy } from "../Models/Strategy-interface";
 import { StopLoss } from "../Orders/StopLoss";
+import { SMAnt } from "../Technicals/SMAnt";
 
 
 export class MaCrossStrategy implements IStrategy {
@@ -22,17 +23,20 @@ export class MaCrossStrategy implements IStrategy {
         let slow: number[] = [];
 
         for(let i = 1; i >= 0; i--) {
-            const fastInput: MAInput = {
-                period: this.fastMa,
-                values: data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
-            }
-            const slowInput: MAInput = {
-                period: this.slowMa,
-                values: data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
-            }
+            //const fastInput: MAInput = {
+            //    period: this.fastMa,
+            //    values: data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
+            //}
+            //const slowInput: MAInput = {
+            //    period: this.slowMa,
+            //    values: data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
+            //}
 
-            fast = fast.concat(SMA.calculate(fastInput));
-            slow = slow.concat(SMA.calculate(slowInput));
+            //fast = fast.concat(SMA.calculate(fastInput));
+            //slow = slow.concat(SMA.calculate(slowInput));
+
+            fast = fast.concat(SMAnt.calculate(data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4]), this.fastMa));
+            slow = slow.concat(SMAnt.calculate(data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4]), this.slowMa));        
         }
 
         if(CrossUpside(fast, slow)) {
