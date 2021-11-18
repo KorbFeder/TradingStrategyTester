@@ -34,39 +34,38 @@ export class TestingPipeline {
 	) {}
 
 	async start(config: BacktestConfig, resultChecking: IResultChecking) {
-		const results: TestingPipelineResult = {}
-		// Test each Trade individually 
-		const individualTests = new Backtesting(this.exchange, new IndividualPositionCheck());
-		config.strategy.getStopLossTarget = async (data: OHLCV[], entryPrice: number, direction: TradeDirection) => StopLoss.defaultAtr(data, entryPrice, direction);
-		results.individualReport = await individualTests.start(config);
+		const promises: Promise<PerformanceReport>[] = [];
 
-		// Exit existing position if new Trade would be started
-		const normalTests = new Backtesting(this.exchange, new NormalCheck());
-		config.strategy.getStopLossTarget = async (data: OHLCV[], entryPrice: number, direction: TradeDirection) => StopLoss.defaultAtr(data, entryPrice, direction);
-		results.normalTestReport = await normalTests.start(config);
-
-		// Stay in position even if new Trades signals would come in only enter if in no position
-		const ignoreNewTests = new Backtesting(this.exchange, new IgnoreNewTradesCheck());
-		config.strategy.getStopLossTarget = async (data: OHLCV[], entryPrice: number, direction: TradeDirection) => StopLoss.defaultAtr(data, entryPrice, direction);
-		results.ignoreNewReport = await ignoreNewTests.start(config);
+		promises.push(this.defaultTest(config, new IndividualPositionCheck()));
+		promises.push(this.defaultTest(config, new NormalCheck()));
+		promises.push(this.defaultTest(config, new IgnoreNewTradesCheck()))
 
 		// the intended backtest
 		const backtest = new Backtesting(this.exchange, resultChecking);
-		results.classicReport = await backtest.start(config);
+		promises.push(backtest.start(config));
 
 		// check the entry isolated
 		const entryTest = new Backtesting(this.exchange, new EntryCheck(FIXED_BAR_EXIT));
-		results.entryReport = await entryTest.start(config);
+		promises.push(entryTest.start(config));
 
 		// check the exit condition isolated
-		const exitTesting = new Backtesting(this.exchange, resultChecking);
+		promises.push(this.exitTest(config, resultChecking));
+		return await Promise.all(promises);
+	}
+
+	private async defaultTest(config: BacktestConfig, resultCheck: IResultChecking): Promise<PerformanceReport> {
+		const individualTests = new Backtesting(this.exchange, resultCheck);
+		config.strategy.getStopLossTarget = async (data: OHLCV[], entryPrice: number, direction: TradeDirection) => StopLoss.defaultAtr(data, entryPrice, direction);
+		return await individualTests.start(config);
+	}
+
+	private exitTest(config: BacktestConfig, resultCheck: IResultChecking): Promise<PerformanceReport> {
+		const exitTesting = new Backtesting(this.exchange, resultCheck);
 		const exitConfig = cloneDeep(config);
 		const exitStrat: ExitTestStrategy = new ExitTestStrategy(config.strategy.usesDynamicExit, WAITING_BARS_ENTRY);
 		exitStrat.getStopLossTarget = config.strategy.getStopLossTarget;
 		exitStrat.dynamicExit = config.strategy.dynamicExit;
 		exitConfig.strategy = exitStrat;
-		results.exitReport = await exitTesting.start(exitConfig);
-
-		return results;
+		return exitTesting.start(exitConfig);
 	}
 }
