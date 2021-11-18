@@ -53,10 +53,10 @@ export class TestingPipeline {
 		return await Promise.all(promises);
 	}
 
-	private async defaultTest(config: BacktestConfig, resultCheck: IResultChecking): Promise<PerformanceReport> {
+	private defaultTest(config: BacktestConfig, resultCheck: IResultChecking): Promise<PerformanceReport> {
 		const individualTests = new Backtesting(this.exchange, resultCheck);
 		config.strategy.getStopLossTarget = async (data: OHLCV[], entryPrice: number, direction: TradeDirection) => StopLoss.defaultAtr(data, entryPrice, direction);
-		return await individualTests.start(config);
+		return individualTests.start(config);
 	}
 
 	private exitTest(config: BacktestConfig, resultCheck: IResultChecking): Promise<PerformanceReport> {
