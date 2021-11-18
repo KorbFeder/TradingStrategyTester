@@ -1,20 +1,14 @@
 import { Exchange, OHLCV } from "ccxt";
-import { cloneDeep, initial, mean } from "lodash";
-import { std } from "mathjs";
-import { positional } from "yargs";
 import { Candlestick } from "../Consts/Candlestick";
 import { calcStartingTimestamp, Timeframe, timeToNumber } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { closePositionBacktesting } from "../helpers/closePositionBacktesting";
 import { fetchWithDate } from "../helpers/fetchWithDate";
 import { PerfReportHelper } from "../helpers/PerfReportHelper";
-import { FuturePosition } from "../Models/FuturePosition-interface";
-import { ManagementType, ManagePosition } from "../Models/ManagePosition-interface";
-import { PerformanceReport, SinglePerformanceReport } from "../Models/PerformanceReport-model";
+import { PerformanceReport } from "../Models/PerformanceReport-model";
 import { IResultChecking } from "../Models/ResultChecking-interface";
 import { IStrategy } from "../Models/Strategy-interface";
 import { ITrade } from "../Models/TestAccount-model";
-import { TestAccount } from "./TestAccount";
 
 const MIN_BARS = 256;
 const DATA_LIMIT = 500;
