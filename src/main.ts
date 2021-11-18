@@ -66,6 +66,7 @@ import { ManagementType } from "./Models/ManagePosition-interface";
 import { SMAnt } from "./Technicals/SMAnt";
 import { ManageFixedBarExit } from "./Orders/ManageFixedBarExit";
 import { TestingPipeline } from "./Testing/TestingPipeline";
+import { NormalCheck } from "./Testing/ResultChecking/NormalCheck";
 
 const db: Database = new Database()
 
@@ -113,7 +114,7 @@ async function run(runningInstance: number = 0) {
         includeComissions: false,
     };
     const pipeline = new TestingPipeline(coinbase);
-    const results = await pipeline.start(config, new ManageDefaultPosition(), ManagementType.NORMAL);
+    const results = await pipeline.start(config, new NormalCheck());
     console.log(results);
     //const perf = await backtest.start(config);
     //console.log(perf);

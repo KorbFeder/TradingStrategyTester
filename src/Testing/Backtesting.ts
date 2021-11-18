@@ -56,7 +56,7 @@ export class Backtesting {
 			const direction: TradeDirection = await config.strategy.calculate(subsample, this.exchange, config.symbol, config.timeframe, calcStartingTimestamp(config.timeframe, Candlestick.timestamp(subsample), DATA_LIMIT), DATA_LIMIT);
 			const result = await this.resultCheck.check(data, i, direction, config); 
 			if(result) {
-				this.trades.concat(result);
+				this.trades = this.trades.concat(result);
 			}
 		}
 

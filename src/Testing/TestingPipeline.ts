@@ -11,10 +11,10 @@ import { ManageFixedBarExit } from "../Orders/ManageFixedBarExit";
 import { StopLoss } from "../Orders/StopLoss";
 import { BacktestConfig, Backtesting } from "./Backtesting";
 import { ExitTestStrategy } from "./ExitTestStrategy";
-import { EntryCheck } from "./ResultChecking.ts/EntryCheck";
-import { IgnoreNewTradesCheck } from "./ResultChecking.ts/IgnoreNewTradesCheck";
-import { IndividualPositionCheck } from "./ResultChecking.ts/IndividualPositionCheck";
-import { NormalCheck } from "./ResultChecking.ts/normalCheck";
+import { EntryCheck } from "./ResultChecking/EntryCheck";
+import { IgnoreNewTradesCheck } from "./ResultChecking/IgnoreNewTradesCheck";
+import { IndividualPositionCheck } from "./ResultChecking/IndividualPositionCheck";
+import { NormalCheck } from "./ResultChecking/NormalCheck";
 
 const FIXED_BAR_EXIT = 12;
 const WAITING_BARS_ENTRY = 50;
