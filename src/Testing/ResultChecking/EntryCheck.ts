@@ -1,26 +1,34 @@
 import { OHLCV } from "ccxt";
 import { Candlestick } from "../../Consts/Candlestick";
+import { Timeframe } from "../../Consts/Timeframe";
 import { TradeDirection } from "../../Consts/TradeDirection";
 import { closePositionBacktesting } from "../../helpers/closePositionBacktesting";
+import { ChartData } from "../../Models/ChartData-model";
+import { IDataProvider } from "../../Models/DataProvider-interface";
 import { FuturePosition } from "../../Models/FuturePosition-interface";
 import { ManagePosition } from "../../Models/ManagePosition-interface";
 import { IResultChecking } from "../../Models/ResultChecking-interface";
+import { IStrategy } from "../../Models/Strategy-interface";
 import { ITrade } from "../../Models/TestAccount-model";
 import { ManageDefaultPosition } from "../../Orders/ManageDefaultPosition";
 import { ManageFixedBarExit } from "../../Orders/ManageFixedBarExit";
-import { BacktestConfig } from "../Backtesting";
+import { HistoricDataProvider } from "../HistoricDataProvider";
 
 export class EntryCheck implements IResultChecking {
 	currPosition: FuturePosition | undefined;
 
 	constructor(private fixedBars: number, public managePosition: ManagePosition = new ManageFixedBarExit(fixedBars)) {}
 
-	async check(data: OHLCV[], i: number, direction: TradeDirection, config: BacktestConfig): Promise<ITrade[] | undefined> {
+	async check(dataProvider: HistoricDataProvider, direction: TradeDirection, symbol: string, timeframe: Timeframe, strategy: IStrategy): Promise<ITrade[] | undefined> {
+		const data = await dataProvider.getOhlcv(symbol, timeframe);
 		if(direction != TradeDirection.HOLD) {
 			this.managePosition.reset();
-			const confirmationData = data.slice(i-1, data.length-1);
+			const confirmationData = dataProvider.getConfimationData(timeframe);
+			if(confirmationData.length <= 1) {
+				return undefined;
+			}
 			const position: FuturePosition = {
-				symbol: config.symbol, 
+				symbol: symbol, 
 				price: Candlestick.open(confirmationData, 1),
 				buyOrderType: 'market',
 				amount: 1,

@@ -1,5 +1,5 @@
 import { Exchange } from "ccxt";
-import { Database } from "../Database";
+import { Database } from "../Database/Database";
 import { IBot } from "../Models/Bot-interface";
 import readline from 'readline';
 import { IAlert } from "../Models/Alert-model";

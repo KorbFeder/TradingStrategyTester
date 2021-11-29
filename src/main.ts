@@ -3,49 +3,29 @@ import { config } from "dotenv";
 import { Lowest, mfi, RSI } from "technicalindicators";
 import { calcStartingTimestamp, Timeframe } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
-import { Database } from "./Database";
+import { Database } from "./Database/Database";
 import { CandlestickPatterns } from "./Technicals/CandlestickPatterns";
 import { Divergence } from "./Technicals/Divergence";
 import { PivotExtremes } from "./Technicals/PivotExtremes";
-import { BollingerBandsStrategy } from "./Strategies/BollingsBandsStrategy";
-import { FibRetracementStrategy } from "./Strategies/FibRetracementStrategy";
 import { MaCrossStrategy } from "./Strategies/MaCrossStrategy";
-import { SimpleMomentumStrategy } from "./Strategies/SimpleMomentumStrategy";
-import { Trading } from "./Tradeing";
 import { Renko } from "./Technicals/Renko";
 import { KeySRLevels } from "./Technicals/KeySRLevels";
 import { getMarketSymbols } from "./helper";
-import { AOdivergenceStrategy } from "./Strategies/AOdivergenceStrategy";
-import { startServer } from "./GUI/backendApi";
 import { Trend } from "./Consts/Trend";
 import { MarketTrend } from "./Technicals/MarketTrend";
-import { saveDataASFile } from "./GUI/saveDataAsFile";
 import { Orders } from "./Orders/Orders";
 import { FuturePosition } from "./Models/FuturePosition-interface";
-import { RenkoEmaStrategy } from "./Strategies/RenkoEmaStrategy";
 import { SmoothRsi } from "./Technicals/SmoothRsi";
-import { DivergenceStrategy } from "./Strategies/DivergenceStrategy";
 import { WilliamsFractals } from "./Technicals/WilliamsFractals";
-import { SmaFractialsStrategy } from "./Strategies/SmaFractalsStrategy";
-import { RsiDivergenceStrategy } from "./Strategies/RsiDivergenceStrategy";
-import { SingleTest } from "./Testing/SingleTest";
-import { MfiDivergenceStrategy } from "./Strategies/MfiDivergenceStrategy";
 import { MFI } from "./Technicals/MFI";
-import { CciDivergenceStrategy } from "./Strategies/CciDivergenceStrategy";
-import { AdlDivergenceStrategy } from "./Strategies/AdlDivergenceStrategy";
-import { MacdDivergenceStrategy } from "./Strategies/MacdDivergenceStrategy";
 import { ADXInput, ADXOutput } from "technicalindicators/declarations/directionalmovement/ADX";
 import { Candlestick } from "./Consts/Candlestick";
 import { IStrategy } from "./Models/Strategy-interface";
-import { DivergenceTrendStrategy } from "./Strategies/DivergenceTrendStrategy";
-import { ApiServer } from "./ApiEndpoint/ApiServer";
-import { HiddenRsiStochStrategy } from "./Strategies/HiddenRsiStochStrategy";
 import * as yargs from 'yargs';
 import { json } from "express";
 import { ITradingAccount } from "./Models/TradingAccount-interface";
 import { TestAccount } from "./Testing/TestAccount";
 import { ChoppinessIndex } from "./Technicals/ChoppinessIndex";
-import { ConsolidationFindingStrategy } from "./Strategies/ConsolidationFindingStrategy";
 import { Screening } from "./Screening";
 import { ChoppinessIndexScreener } from "./Screeners/ChoppinessIndexScreener";
 import { MarketStructureScreener } from "./Screeners/MarketStructureScreener";
@@ -57,16 +37,18 @@ import { Alert } from "./Alerts/Alert";
 import { Cli } from "./CLI/Cli";
 import { Delta } from "./Technicals/Delta";
 import { HurstExponent } from "./Technicals/MarketStructure/HurstExponent";
-import { MarketStructureBackTest } from "./Testing/MarketStructureBackTest";
-import { fetchWithDate } from "./helpers/fetchWithDate";
-import { BacktestConfig, Backtesting } from "./Testing/Backtesting";
+import { Backtesting } from "./Testing/Backtesting";
 import { ATR } from "./Technicals/ATR";
 import { ManageDefaultPosition } from "./Orders/ManageDefaultPosition";
 import { ManagementType } from "./Models/ManagePosition-interface";
 import { SMAnt } from "./Technicals/SMAnt";
 import { ManageFixedBarExit } from "./Orders/ManageFixedBarExit";
-import { TestingPipeline } from "./Testing/TestingPipeline";
 import { NormalCheck } from "./Testing/ResultChecking/NormalCheck";
+import { DataCache } from "./Database/DataCache";
+import { BybitTrades } from "./Testing/HistoricTrades/BybitTrades";
+import { Optimizing } from "./Testing/Optimizing";
+import { BacktestConfig, OptimizationConfig, WalkForwardConfig } from "./Models/TestingConfigs";
+import { WalkForwardAnalysis } from "./Testing/WalkForwardAnalysis";
 
 const db: Database = new Database()
 
@@ -88,9 +70,7 @@ exchange.options = {
     defaultMarket: 'futures'
 };
 
-const coinbaseId = 'coinbasepro'
-const coinbaseExchangeClass = ccxt[coinbaseId];
-const coinbase = new coinbaseExchangeClass({
+const coinbase = new ccxt.coinbasepro({
     'timeout': 30000,
     'enableRateLimit': true,
 });
@@ -103,34 +83,37 @@ async function run(runningInstance: number = 0) {
     //const result = ATR.calcNt(data, 14);
 
     await db.connect(runningInstance);
-    
-    //const backtest = new Backtesting(coinbase, new ManageDefaultPosition(), ManagementType.NORMAL);
-    const config: BacktestConfig = {
-        startDate: new Date(Date.UTC(2021, 6, 10)),
-        endDate: new Date(Date.UTC(2021, 8, 11)),
+    const bybit: BybitTrades = new BybitTrades();
+
+    const config: WalkForwardConfig = {
+        startDate: new Date(Date.UTC(2021, 7, 3)),
+        endDate: new Date(Date.UTC(2021, 9, 25)),
         symbol: 'BTC/USD',
         timeframe: Timeframe.h1,
-        strategy: new MaCrossStrategy(11, 25),
+        strategy: new MaCrossStrategy('BTC/USD', Timeframe.h1 ,11, 25),
         includeComissions: false,
+        optimizationFunction: 'profitFactor',
+        useNeighbours: 1,
+        optimizationPeriod: 500,
+        testPeriod: 400
     };
-    const pipeline = new TestingPipeline(coinbase);
-    const results = await pipeline.start(config, new NormalCheck());
-    console.log(results);
+
+    const walkforward = new WalkForwardAnalysis(coinbase, new NormalCheck());
+    const walk = await walkforward.start(config)
+    console.log(walk);
+    //const backtest = new Backtesting(coinbase, new NormalCheck());
+    //const topParams = await backtest.start(config);
+    //const optimization = new Optimizing(exchange, new NormalCheck());
+    //const topParams = await optimization.start(config, );
+    //console.log(topParams);
+    //const backtest = new Backtesting(exchange, new NormalCheck());
+    //const d = await backtest.start(config);
+    //const pipeline = new TestingPipeline(coinbase);
+    //const results = await pipeline.start(config, new NormalCheck());
+    //console.log(results);
     //const perf = await backtest.start(config);
     //console.log(perf);
-    //const backtest = new Backtesting(coinbase, new ManageFixedBarExit(12), ManagementType.ENTRY_TESTING);
-    //const config: BacktestConfig = {
-    //    startDate: new Date(Date.UTC(2021, 7, 1)),
-    //    endDate: new Date(Date.UTC(2021, 8, 30)),
-    //    symbol: 'BTC/USD',
-    //    timeframe: Timeframe.h1,
-    //    strategy: new MaCrossStrategy(11, 25),
-    //    includeComissions: false,
-    //};
-    //const perf = await backtest.start(config);
-    //console.log(perf);
-
-
+    
 //    const a = await fetchWithDate(exchange, 'BTC-PERP', Timeframe.h1, new Date(2021, 4, 4, 11), new Date(2021, 4, 4, 12));
 //    const start = new MaCrossStrategy(50, 200);
 //    const result = await start.calculate(a);

@@ -2,7 +2,7 @@ import { Exchange, OHLCV } from "ccxt";
 import { CandleList } from "technicalindicators";
 import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
-import { Database } from "../Database";
+import { Database } from "../Database/Database";
 import { getMarketSymbols } from "../helper";
 import { IBot } from "../Models/Bot-interface";
 import path from "path";

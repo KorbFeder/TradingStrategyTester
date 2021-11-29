@@ -1,24 +1,33 @@
 import { OHLCV } from "ccxt";
 import { Candlestick } from "../../Consts/Candlestick";
+import { Timeframe } from "../../Consts/Timeframe";
 import { TradeDirection } from "../../Consts/TradeDirection";
 import { closePositionBacktesting } from "../../helpers/closePositionBacktesting";
+import { ChartData } from "../../Models/ChartData-model";
+import { IDataProvider } from "../../Models/DataProvider-interface";
 import { FuturePosition } from "../../Models/FuturePosition-interface";
 import { ManagePosition } from "../../Models/ManagePosition-interface";
 import { IResultChecking } from "../../Models/ResultChecking-interface";
+import { IStrategy } from "../../Models/Strategy-interface";
 import { ITrade } from "../../Models/TestAccount-model";
 import { ManageDefaultPosition } from "../../Orders/ManageDefaultPosition";
-import { BacktestConfig } from "../Backtesting";
+import { HistoricDataProvider } from "../HistoricDataProvider";
 
 export class IndividualPositionCheck implements IResultChecking {
 	currPosition: FuturePosition | undefined;
 
 	constructor(public managePosition: ManagePosition = new ManageDefaultPosition()) {}
 
-	async check(data: OHLCV[], i: number, direction: TradeDirection, config: BacktestConfig): Promise<ITrade[] | undefined> {
+	async check(dataProvider: HistoricDataProvider, direction: TradeDirection, symbol: string, timeframe: Timeframe, strategy: IStrategy): Promise<ITrade[] | undefined> {
+		const data = await dataProvider.getOhlcv(symbol, timeframe);
 		if(direction != TradeDirection.HOLD) {
-			const testData = data.slice(0, i);
-			const confirmationData = data.slice(i-1, data.length-1);
-			const {stops, targets} = await config.strategy.getStopLossTarget(testData, Candlestick.open(confirmationData, 1), direction);
+			const testData = data;
+			const confirmationData = dataProvider.getConfimationData(timeframe);	
+			if(confirmationData.length <= 1) {
+				return undefined;
+			}
+			const stops = await strategy.getStopLoss(dataProvider, Candlestick.open(confirmationData, 1), direction);
+			const targets = await strategy.getTarget(dataProvider, Candlestick.open(confirmationData, 1), direction);
 			// calcualte size of the position
 			const size = 1;
 			//const size = await this.account.calculatePositionSize(stops, Candlestick.close(testData));
@@ -27,7 +36,7 @@ export class IndividualPositionCheck implements IResultChecking {
 			this.managePosition.reset();
 
 			const position: FuturePosition = {
-				symbol: config.symbol, 
+				symbol: symbol, 
 				price: Candlestick.open(confirmationData, 1),
 				buyOrderType: 'market',
 				amount: stops.map(stop => stop.amount).reduce((prev, curr) => prev + curr),

@@ -6,35 +6,37 @@ import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { CrossUpside } from "../helper";
+import { ChartData } from "../Models/ChartData-model";
+import { IDataProvider } from "../Models/DataProvider-interface";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
 import { LimitOrder } from "../Models/FuturePosition-interface";
 import { IStrategy } from "../Models/Strategy-interface";
 import { StopLoss } from "../Orders/StopLoss";
 import { SMAnt } from "../Technicals/SMAnt";
+import { OptimizationParameters } from "../Testing/Optimizing";
 
 
 export class MaCrossStrategy implements IStrategy {
-    usesDynamicExit: boolean = false;
+    public barsNeededForIndicator: number = 20;
+    private defaultFastMa: number;
+    private defaultSlowMa: number;
 
-    constructor(private fastMa: number, private slowMa: number) {}
+    constructor(
+        public symbol: string,
+        public timeframe: Timeframe,
+        private fastMa: number, 
+        private slowMa: number
+    ) {
+        this.defaultFastMa = fastMa;
+        this.defaultSlowMa = slowMa;
+    }
     
-    async calculate(data: OHLCV[], exchange?: Exchange, symbol?: string, timeframe?: Timeframe, since?: number, limit?: number): Promise<TradeDirection> {
+    async calculate(dataProvider: IDataProvider): Promise<TradeDirection> {
+        const data: OHLCV[] = await dataProvider.getOhlcv(this.symbol, this.timeframe);
         let fast: number[] = [];
         let slow: number[] = [];
 
         for(let i = 1; i >= 0; i--) {
-            //const fastInput: MAInput = {
-            //    period: this.fastMa,
-            //    values: data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
-            //}
-            //const slowInput: MAInput = {
-            //    period: this.slowMa,
-            //    values: data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4])
-            //}
-
-            //fast = fast.concat(SMA.calculate(fastInput));
-            //slow = slow.concat(SMA.calculate(slowInput));
-
             fast = fast.concat(SMAnt.calculate(data.slice(data.length - this.fastMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4]), this.fastMa));
             slow = slow.concat(SMAnt.calculate(data.slice(data.length - this.slowMa - i, data.length - i).map((ohlcv: OHLCV) => ohlcv[4]), this.slowMa));        
         }
@@ -51,11 +53,38 @@ export class MaCrossStrategy implements IStrategy {
         return TradeDirection.HOLD;
     }
 
-    async getStopLossTarget(data: OHLCV[], entryPrice: number, direction: TradeDirection): Promise<{ stops: LimitOrder[]; targets: LimitOrder[]; }> {
-        return StopLoss.defaultAtr(data, entryPrice, direction);
+    async getStopLoss(dataProvider: IDataProvider, entryPrice: number, direction: TradeDirection): Promise<LimitOrder[]> {
+        const data: OHLCV[] = await dataProvider.getOhlcv(this.symbol, this.timeframe);
+        return StopLoss.defaultAtr(data, entryPrice, direction).stops;
     }
 
-	async dynamicExit(exchange: Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined> {
-        return undefined;
+    async getTarget(dataProvider: IDataProvider, entryPrice: number, direction: TradeDirection): Promise<LimitOrder[]> {
+        const data: OHLCV[] = await dataProvider.getOhlcv(this.symbol, this.timeframe);
+        return StopLoss.defaultAtr(data, entryPrice, direction).targets;
+    }
+
+    async checkExit(dataProvider: IDataProvider, tradeDirection: TradeDirection): Promise<boolean> {
+        return false
+    }
+
+    getParams(): OptimizationParameters[] {
+        return [
+            //fastMa
+            {startValue: 10, endValue: 30, stepValue: 1},
+            // slowMa
+            {startValue: 60, endValue: 80, stepValue: 1},
+        ]
+    }
+
+    setParams(params: number[]): void {
+        if(params.length != 2) {
+            throw "too much/little paramers provided";
+        }
+        this.fastMa = params[0]; 
+        this.slowMa = params[1]; 
+    }
+
+    getDefaultParams(): number[] {
+        return [this.defaultFastMa, this.defaultSlowMa];
     }
 }

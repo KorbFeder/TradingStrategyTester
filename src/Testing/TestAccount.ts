@@ -1,5 +1,5 @@
 import { TradeDirection } from "../Consts/TradeDirection";
-import { Database } from "../Database";
+import { Database } from "../Database/Database";
 import { LimitOrder } from "../Models/FuturePosition-interface";
 import { ITestAccount, ITrade } from "../Models/TestAccount-model";
 import { PositionSize } from "../Orders/PositionSize";

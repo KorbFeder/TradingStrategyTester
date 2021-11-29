@@ -1,16 +1,21 @@
 import * as ccxt from "ccxt";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
-import { OptParam } from "../Testing/Optimization";
+import { OptimizationParameters } from "../Testing/Optimizing";
+import { ChartData } from "./ChartData-model";
+import { IDataProvider } from "./DataProvider-interface";
 import { IDynamicExit } from "./DynamicExit-interface";
 import { LimitOrder } from "./FuturePosition-interface";
 
 export interface IStrategy {
-	usesDynamicExit: boolean;
-    // calculate strategy. Data is array of ohlcv datas, should be ordered by timeframe
-    calculate(data: ccxt.OHLCV[], exchange?: ccxt.Exchange, symbol?: string, timeframe?: Timeframe, since?: number, limit?: number): Promise<TradeDirection>;
-    getStopLossTarget(data: ccxt.OHLCV[], entryPrice: number, direction: TradeDirection): Promise<{stops: LimitOrder[], targets: LimitOrder[]}>;
-    dynamicExit(exchange: ccxt.Exchange, symbol: string, timeframe: Timeframe, tradeDirection: TradeDirection): Promise<IDynamicExit | undefined>;
-    //getParams(): OptParam[];
-    //setParams(params: OptParam[]): void;
+    barsNeededForIndicator: number;
+
+    calculate(dataProvider: IDataProvider): Promise<TradeDirection>;
+    getStopLoss(dataProvider: IDataProvider, entryPrice: number, tradeDirection: TradeDirection): Promise<LimitOrder[]>;
+    getTarget(dataProvider: IDataProvider, entryPrice: number, tradeDirection: TradeDirection): Promise<LimitOrder[]>
+    checkExit(dataProvider: IDataProvider, tradeDirection: TradeDirection): Promise<boolean>;
+
+    getParams(): OptimizationParameters[];
+    setParams(value: number[]): void;
+    getDefaultParams(): number[];
 }

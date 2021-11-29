@@ -4,7 +4,7 @@ import { std } from "mathjs";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { PerformanceReport, SinglePerformanceReport } from "../Models/PerformanceReport-model";
 import { ITrade } from "../Models/TestAccount-model";
-import { BacktestConfig } from "../Testing/Backtesting";
+import { BacktestConfig } from "../Models/TestingConfigs";
 const ubique = require('ubique');
 
 export enum SplitTimeInterval {
@@ -31,6 +31,11 @@ export class PerfReportHelper {
 	private currLoseStreakShort = 0;
 
 	constructor(private exchange: Exchange, private config: BacktestConfig) {
+		this.perfReport = this.emptyPerfRep(config)
+	}
+
+	
+	public emptyPerfRep(config: BacktestConfig) {
 		const singlePerfRep: SinglePerformanceReport = {
 			totalNetProfit: 0,
 			grossProfit: 0,
@@ -77,14 +82,12 @@ export class PerfReportHelper {
 		}
 
 		// deep cloning in case an array gets added to SinglePerformanceReport
-		this.perfReport = {
+		return {
 			allTrades: cloneDeep(singlePerfRep),
 			longTrades: cloneDeep(singlePerfRep),
 			shortTrades: cloneDeep(singlePerfRep)
 		}
 	}
-
-	
 
 	public async addToPerfRep(trades: ITrade[]): Promise<PerformanceReport> {
 		this.addTrades(trades);
@@ -292,9 +295,15 @@ export class PerfReportHelper {
 			intervalProfitsShort.push(intervalProfitShort);
 		}
 
-		this.perfReport.allTrades.sharpe = this.perfReport.allTrades.profitPerMonth / std(intervalProfitsAll);
-		this.perfReport.longTrades.sharpe = this.perfReport.longTrades.profitPerMonth / std(intervalProfitsLong);
-		this.perfReport.shortTrades.sharpe = this.perfReport.shortTrades.profitPerMonth / std(intervalProfitsShort);
+		if(intervalProfitsAll.length > 0) {
+			this.perfReport.allTrades.sharpe = this.perfReport.allTrades.profitPerMonth / std(intervalProfitsAll);
+		} 
+		if(intervalProfitsLong.length > 0) {
+			this.perfReport.longTrades.sharpe = this.perfReport.longTrades.profitPerMonth / std(intervalProfitsLong);
+		}
+		if(intervalProfitsShort.length > 0) {
+			this.perfReport.shortTrades.sharpe = this.perfReport.shortTrades.profitPerMonth / std(intervalProfitsShort);
+		}
 	}
 
 	private avgTrades() {

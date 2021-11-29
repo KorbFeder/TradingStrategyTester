@@ -1,13 +1,11 @@
-import { Exchange } from "ccxt";
 import mongoose from "mongoose";
-import { TradeDirection } from "./Consts/TradeDirection";
-import { getBaseCurrency, getMarketSymbols } from "./helper";
-import CryptoCurrencyModel, {ICryptoCurrency} from "./Models/CryptoCurrency-model";
-import { LimitOrder } from "./Models/FuturePosition-interface";
-import LoggingModel, { ILogging } from "./Models/Logging-model";
-import OrderModel, { IOrder } from "./Models/Order-model";
-import TestAccountModel, { ITestAccount, ITrade } from "./Models/TestAccount-model";
-import AlertModel, { IAlert } from "./Models/Alert-model";
+import { TradeDirection } from "../Consts/TradeDirection";
+import CryptoCurrencyModel, {ICryptoCurrency} from "../Models/CryptoCurrency-model";
+import { LimitOrder } from "../Models/FuturePosition-interface";
+import LoggingModel, { ILogging } from "../Models/Logging-model";
+import OrderModel, { IOrder } from "../Models/Order-model";
+import TestAccountModel, { ITestAccount, ITrade } from "../Models/TestAccount-model";
+import AlertModel, { IAlert } from "../Models/Alert-model";
 
 export const STARTING_MONEY = 100000;
 
@@ -155,5 +153,4 @@ export class Database {
     async removeAlert(_id: mongoose.Types.ObjectId) {
         return await AlertModel.remove({_id});
     }
-
 }
