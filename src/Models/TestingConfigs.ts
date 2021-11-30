@@ -32,12 +32,14 @@ export interface OptimizationConfig extends TestConfig{
 
 export interface TestSegment {
 	optimization: {startDate: Date, endDate: Date};
-	test: {startDate: Date, endDate: Date}
+	test: {startDate: Date, endDate: Date};
 }
 
 export interface WalkForwardConfig extends OptimizationConfig {
-	optimizationPeriod: number;
-	testPeriod: number;
+	// in how many walk forward windows of optimization and backtest the data is getting split
+	numOfStages: number;
+	// example 0.25 => backtest 1 and optimization 4 length
+	backtestToOptRatio: number;
 	// specify testing segments instead of peroids if this is defined this method is used
-	timeSegments?: TestSegment[]
+	testSegments?: TestSegment[];
 }

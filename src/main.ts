@@ -1,7 +1,7 @@
 import * as ccxt from "ccxt";
 import { config } from "dotenv";
 import { Lowest, mfi, RSI } from "technicalindicators";
-import { calcStartingTimestamp, Timeframe } from "./Consts/Timeframe";
+import { calcStartingTimestamp, Timeframe, timeToNumber } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { Database } from "./Database/Database";
 import { CandlestickPatterns } from "./Technicals/CandlestickPatterns";
@@ -86,19 +86,20 @@ async function run(runningInstance: number = 0) {
     const bybit: BybitTrades = new BybitTrades();
 
     const config: WalkForwardConfig = {
-        startDate: new Date(Date.UTC(2021, 7, 3)),
-        endDate: new Date(Date.UTC(2021, 9, 25)),
+        startDate: new Date(Date.UTC(2021, 0, 1)),
+        endDate: new Date(Date.UTC(2021, 2, 1)),
         symbol: 'BTC/USD',
-        timeframe: Timeframe.h1,
-        strategy: new MaCrossStrategy('BTC/USD', Timeframe.h1 ,11, 25),
+        timeframe: Timeframe.m15,
+        strategy: new MaCrossStrategy('BTC/USD', Timeframe.m15 ,11, 25),
         includeComissions: false,
         optimizationFunction: 'profitFactor',
         useNeighbours: 1,
-        optimizationPeriod: 500,
-        testPeriod: 400
+        numOfStages: 6,
+        backtestToOptRatio: 0.25 
     };
 
-    const walkforward = new WalkForwardAnalysis(coinbase, new NormalCheck());
+
+    const walkforward = new WalkForwardAnalysis(exchange, new NormalCheck());
     const walk = await walkforward.start(config)
     console.log(walk);
     //const backtest = new Backtesting(coinbase, new NormalCheck());

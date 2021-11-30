@@ -47,7 +47,6 @@ export class Backtesting {
 		config.strategies.forEach(_ => resultChecks.push(cloneDeep(this.resultCheck)));
 
 		for(let currDate = currStartDate; currDate < config.endDate.getTime();currDate += timeToNumber(config.timeframe)) {
-
 			this.dataProvider.setCurrDate(new Date(currDate));
 			for(let i = 0; i < config.strategies.length; i++) {
 				const direction: TradeDirection = await config.strategies[i].calculate(this.dataProvider);
@@ -58,6 +57,7 @@ export class Backtesting {
 				}
 			}
 		}
+		
 
 		//if the simulation is over and a position would still be up close it at the last close price
 		for(let i = 0; i < config.strategies.length; i++) {

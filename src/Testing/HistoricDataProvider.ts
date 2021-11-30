@@ -13,7 +13,8 @@ export class HistoricDataProvider implements IDataProvider {
 
 	constructor(
 		public exchange: Exchange,
-	) {}
+	) {
+	}
 
 	async getOhlcv(symbol: string, timeframe: Timeframe): Promise<OHLCV[]> {
 		if(this.startDate && this.endDate && this.currDate) {

@@ -20,7 +20,11 @@ export class NormalCheck implements IResultChecking {
 	async check(dataProvider: HistoricDataProvider, direction: TradeDirection, symbol: string, timeframe: Timeframe, strategy: IStrategy): Promise<ITrade[] | undefined> {
 		const data: OHLCV[] = await dataProvider.getOhlcv(symbol, timeframe);
 		const confirmation = dataProvider.getConfimationData(timeframe);
+		if(confirmation.length <= 1) {
+			return undefined;
+		}
 		const entry = Candlestick.open(confirmation, 1);
+		
 		if(direction != TradeDirection.HOLD) {
 			const trades: ITrade[] = [];
 			// if there is still an position open close it at the price the new position opens
@@ -52,6 +56,7 @@ export class NormalCheck implements IResultChecking {
 			};
 			return trades;
 		}
+		
 
 		// if position 
 		if(this.currPosition) {
@@ -61,5 +66,6 @@ export class NormalCheck implements IResultChecking {
 				return [result];
 			}
 		}
+		
 	}
 }

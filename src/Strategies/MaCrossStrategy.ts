@@ -70,9 +70,9 @@ export class MaCrossStrategy implements IStrategy {
     getParams(): OptimizationParameters[] {
         return [
             //fastMa
-            {startValue: 10, endValue: 30, stepValue: 1},
+            {startValue: 10, endValue: 30, stepValue: 2},
             // slowMa
-            {startValue: 60, endValue: 80, stepValue: 1},
+            {startValue: 25, endValue: 100, stepValue: 5},
         ]
     }
 
