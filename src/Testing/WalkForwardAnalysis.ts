@@ -34,7 +34,7 @@ export class WalkForwardAnalysis {
 		const result: WalkForwardResult[] = [];
 
 		for(let segment of testSegments) {
-			console.log(segment.test.endDate);
+			console.log('Segements: optimization:', segment.optimization, 'backtest:', segment.test);
 			optimizationConfig.startDate = segment.optimization.startDate;
 			optimizationConfig.endDate = segment.optimization.endDate;
 

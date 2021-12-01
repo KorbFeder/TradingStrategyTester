@@ -45,7 +45,7 @@ export class Optimizing {
 		}
 
 		
-		const params = optimizationParams.map(opt => range(opt.startValue, opt.endValue, opt.stepValue))
+		const params = optimizationParams.map(opt => range(opt.startValue, opt.endValue + opt.stepValue, opt.stepValue))
 		const combinations = this.cartesian(...params);
 
 		const strategies: IStrategy[] = [];

@@ -87,19 +87,19 @@ async function run(runningInstance: number = 0) {
 
     const config: WalkForwardConfig = {
         startDate: new Date(Date.UTC(2021, 0, 1)),
-        endDate: new Date(Date.UTC(2021, 2, 1)),
+        endDate: new Date(Date.UTC(2021, 0, 31)),
         symbol: 'BTC/USD',
         timeframe: Timeframe.m15,
         strategy: new MaCrossStrategy('BTC/USD', Timeframe.m15 ,11, 25),
         includeComissions: false,
         optimizationFunction: 'profitFactor',
-        useNeighbours: 1,
+        //useNeighbours: 1,
         numOfStages: 6,
         backtestToOptRatio: 0.25 
     };
 
 
-    const walkforward = new WalkForwardAnalysis(exchange, new NormalCheck());
+    const walkforward = new WalkForwardAnalysis(coinbase, new NormalCheck());
     const walk = await walkforward.start(config)
     console.log(walk);
     //const backtest = new Backtesting(coinbase, new NormalCheck());

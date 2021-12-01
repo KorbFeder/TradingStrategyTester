@@ -158,9 +158,9 @@ export class PerfReportHelper {
 	}
 
 	private calcProfitFactor() {
-		this.perfReport.allTrades.profitFactor = this.perfReport.allTrades.grossLoss == 0 ? 99 : this.perfReport.allTrades.grossProfit / -this.perfReport.allTrades.grossLoss;
-		this.perfReport.longTrades.profitFactor = this.perfReport.longTrades.grossLoss == 0 ? 99 : this.perfReport.longTrades.grossProfit / -this.perfReport.longTrades.grossLoss;
-		this.perfReport.shortTrades.profitFactor = this.perfReport.shortTrades.grossLoss == 0 ? 99 : this.perfReport.shortTrades.grossProfit / -this.perfReport.shortTrades.grossLoss;
+		this.perfReport.allTrades.profitFactor = this.perfReport.allTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 : 99 : this.perfReport.allTrades.grossProfit / -this.perfReport.allTrades.grossLoss;
+		this.perfReport.longTrades.profitFactor = this.perfReport.longTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 :99 : this.perfReport.longTrades.grossProfit / -this.perfReport.longTrades.grossLoss;
+		this.perfReport.shortTrades.profitFactor = this.perfReport.shortTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 :99 : this.perfReport.shortTrades.grossProfit / -this.perfReport.shortTrades.grossLoss;
 	}
 
 	private calcConsecTradese(trade: ITrade) {
