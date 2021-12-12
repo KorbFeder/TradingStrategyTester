@@ -2,7 +2,6 @@ import * as ccxt from "ccxt";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { OptimizationParameters } from "../Testing/Optimizing";
-import { ChartData } from "./ChartData-model";
 import { IDataProvider } from "./DataProvider-interface";
 import { IDynamicExit } from "./DynamicExit-interface";
 import { LimitOrder } from "./FuturePosition-interface";

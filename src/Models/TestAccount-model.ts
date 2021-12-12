@@ -8,7 +8,8 @@ export interface ITestAccount extends Document {
     trades: ITrade[],
 	percentageGain: number[],
 	balance: number,
-	pnl: number
+	pnl: number,
+	instance: number
 }
 
 export interface ITrade {
@@ -26,6 +27,7 @@ export interface ITrade {
 const TestAcccountSchema: Schema = new Schema({
     _id: {type: Schema.Types.ObjectId, required: true},
 	name: {type: String, reqluired: true},
+	instance: {type: Number, required: true},
 	percentageGain: {type: Array, default: [], require: true},
     trades: {type: Array, default: [], required: true},
     balance: {type: Number, required: true},

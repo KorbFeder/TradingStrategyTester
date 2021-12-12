@@ -9,6 +9,7 @@ export class HistoricDataProvider implements IDataProvider {
 	private startDate: Date | undefined = undefined;
 	private endDate: Date | undefined = undefined;
 	private currDate: Date | undefined = undefined;
+	private timeframe: Timeframe | undefined;
 
 
 	constructor(
@@ -18,8 +19,9 @@ export class HistoricDataProvider implements IDataProvider {
 
 	async getOhlcv(symbol: string, timeframe: Timeframe): Promise<OHLCV[]> {
 		if(this.startDate && this.endDate && this.currDate) {
-			if(this.ohlcv.length <= 0 || !(Candlestick.timestamp(this.ohlcv) == this.endDate.getTime() && Candlestick.timestamp(this.ohlcv, 0) == this.startDate.getTime())) {
+			if(this.ohlcv.length <= 0 || !(Candlestick.timestamp(this.ohlcv) == this.endDate.getTime() && Candlestick.timestamp(this.ohlcv, 0) == this.startDate.getTime() && this.timeframe == timeframe)) {
 				this.ohlcv = await fetchOhlcvWithDate(this.exchange, symbol, timeframe, this.startDate, this.endDate);
+				this.timeframe = timeframe
 			}
 			const index: number = Math.floor(this.currDate.getTime() - this.startDate.getTime()) / timeToNumber(timeframe); 
 			const data = this.ohlcv.slice(0, index + 1);

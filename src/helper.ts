@@ -1,12 +1,12 @@
 import * as ccxt from "ccxt";
 import { ATR } from "technicalindicators";
 import { Candlestick } from "./Consts/Candlestick";
-import { Timeframe } from "./Consts/Timeframe";
+import { Timeframe, timeToNumber } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { IStrategy } from "./Models/Strategy-interface";
 
-export function sleep(ms: number) {
-    new Promise(resolve => setTimeout (resolve, ms));
+export async function sleep(ms: number) {
+    return new Promise(resolve => setTimeout (resolve, ms));
 }
 
 // function that returns all market symbols that are traded against usdt
@@ -61,6 +61,43 @@ export function getQuoteCurrency(symbol: string): string {
         return 'USDT';
     }
     return symbol.split('/')[1];
+}
+
+export async function getFirstTimestamp(exchange: ccxt.Exchange): Promise<Date | undefined> {
+    const symbol: string = 'BTC/USD';
+    // get highest timeframe
+    let max = 0;
+    let timeframe: Timeframe = Timeframe.Mo1;
+    for(const [key, val] of Object.entries(exchange.timeframes)) {
+        let timeframeValue: number = 0;
+        if(typeof  val ==  "number") {
+            timeframeValue = val;
+        } else {
+            timeframeValue = parseInt(val)
+        }
+        if(max < timeframeValue) {
+            max = timeframeValue;
+            timeframe = key as Timeframe;
+        }
+    }
+
+    let since: number | undefined = undefined;
+
+    while(true) {
+        const data: ccxt.OHLCV[] = await exchange.fetchOHLCV(symbol, timeframe, since, 5000);
+        if(data.length == 0) {
+            if(since)
+                since += timeToNumber(Timeframe.Mo1) * 2;
+            break;
+        }
+        const newSince = Candlestick.timestamp(data, 0);
+        if(newSince == since) {
+            since += timeToNumber(Timeframe.Mo1) * 2;
+            break;
+        }
+        since = newSince;
+    }
+    return since ? new Date(since) : undefined;
 }
 
 // line B ___   ___ line A
@@ -125,4 +162,12 @@ export function trueRange(data: ccxt.OHLCV[]): number[] {
         result[i] = Math.max(Math.max(candleDiff, lastCandleAndHighDiff), lastCandleAndLowDiff);
     }
     return result;
+}
+
+export function bottomOfCandle(candle: ccxt.OHLCV): number {
+    return candle[Candlestick.OPEN] < candle[Candlestick.CLOSE] ? candle[Candlestick.OPEN] : candle[Candlestick.CLOSE];
+}
+
+export function topOfCandle(candle: ccxt.OHLCV): number {
+    return candle[Candlestick.OPEN] > candle[Candlestick.CLOSE] ? candle[Candlestick.OPEN] : candle[Candlestick.CLOSE];
 }

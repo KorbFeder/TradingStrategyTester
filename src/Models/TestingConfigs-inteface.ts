@@ -13,7 +13,6 @@ export interface TestConfig {
 	// minium bars to trade, for indicator to calculate the value
 	minBarsForIndicator?: number;
 	barsRequiredToTrade?: number;
-
 }
 
 export interface BacktestConfig extends TestConfig {
@@ -27,6 +26,8 @@ export interface OptimizationConfig extends TestConfig{
 	keepBestNResults?: number;
 	// looks at the results, and their neighbours, the best result + nighbours is the chosen one
 	useNeighbours?: number;
+	// at least n trades have to be done
+	minTradesDone?: number;
 }
 
 

@@ -4,7 +4,8 @@ import { std } from "mathjs";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { PerformanceReport, SinglePerformanceReport } from "../Models/PerformanceReport-model";
 import { ITrade } from "../Models/TestAccount-model";
-import { BacktestConfig } from "../Models/TestingConfigs";
+import { BacktestConfig } from "../Models/TestingConfigs-inteface";
+import { getFeesForTrade } from "./getFeesForTrade";
 const ubique = require('ubique');
 
 export enum SplitTimeInterval {
@@ -30,18 +31,18 @@ export class PerfReportHelper {
 	private currWinstreakShort = 0;
 	private currLoseStreakShort = 0;
 
-	constructor(private exchange: Exchange, private config: BacktestConfig) {
-		this.perfReport = this.emptyPerfRep(config)
+	constructor(private exchange: Exchange, private startDate: Date, private endDate: Date) {
+		this.perfReport = this.emptyPerfRep(startDate, endDate)
 	}
 
 	
-	public emptyPerfRep(config: BacktestConfig) {
+	public emptyPerfRep(startDate: Date, endDate: Date) {
 		const singlePerfRep: SinglePerformanceReport = {
 			totalNetProfit: 0,
 			grossProfit: 0,
 			grossLoss: 0,
 			commissions: 0,
-			profitFactor: 1,
+			profitFactor: 0,
 			maxDrawdown: 0,
 			sharpe: 1,
 			sortino: 1, 
@@ -49,8 +50,8 @@ export class PerfReportHelper {
 			rsquared: 0,
 			probability: 0,
 
-			startDate: new Date(config.startDate),
-			endDate: new Date(config.endDate),
+			startDate: new Date(startDate),
+			endDate: new Date(endDate),
 
 			percentProftiableTrades: 0,
 			wins: 0,
@@ -115,7 +116,7 @@ export class PerfReportHelper {
 	}
 
 	private async addTradeToPerfRep(trade: ITrade) {
-		const allFees = this.getFeesForTrade(trade);
+		const allFees = getFeesForTrade(trade, this.exchange);
 
 		if(trade.tradeDirection == TradeDirection.BUY) {
 			this.perfReport.allTrades.wins += trade.win ? 1 : 0;
@@ -158,9 +159,9 @@ export class PerfReportHelper {
 	}
 
 	private calcProfitFactor() {
-		this.perfReport.allTrades.profitFactor = this.perfReport.allTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 : 99 : this.perfReport.allTrades.grossProfit / -this.perfReport.allTrades.grossLoss;
-		this.perfReport.longTrades.profitFactor = this.perfReport.longTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 :99 : this.perfReport.longTrades.grossProfit / -this.perfReport.longTrades.grossLoss;
-		this.perfReport.shortTrades.profitFactor = this.perfReport.shortTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 1 :99 : this.perfReport.shortTrades.grossProfit / -this.perfReport.shortTrades.grossLoss;
+		this.perfReport.allTrades.profitFactor = this.perfReport.allTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 0 : 99 : this.perfReport.allTrades.grossProfit / -this.perfReport.allTrades.grossLoss;
+		this.perfReport.longTrades.profitFactor = this.perfReport.longTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 0 :99 : this.perfReport.longTrades.grossProfit / -this.perfReport.longTrades.grossLoss;
+		this.perfReport.shortTrades.profitFactor = this.perfReport.shortTrades.grossLoss == 0 ? this.perfReport.allTrades.grossProfit == 0 ? 0 :99 : this.perfReport.shortTrades.grossProfit / -this.perfReport.shortTrades.grossLoss;
 	}
 
 	private calcConsecTradese(trade: ITrade) {
@@ -248,7 +249,7 @@ export class PerfReportHelper {
 
 		for(let data of intervals) {
 			for(let trade of data.trades) {
-				const allFees = this.getFeesForTrade(trade);
+				const allFees = getFeesForTrade(trade, this.exchange);
 				if(trade.tradeDirection == TradeDirection.BUY) {
 					const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
 					intervalProfitLong += diff;
@@ -278,7 +279,7 @@ export class PerfReportHelper {
 
 		for(let data of intervals) {
 			for(let trade of data.trades) {
-				const allFees = this.getFeesForTrade(trade);
+				const allFees = getFeesForTrade(trade, this.exchange);
 				if(trade.tradeDirection == TradeDirection.BUY) {
 					const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
 					intervalProfitLong += diff;
@@ -328,14 +329,14 @@ export class PerfReportHelper {
 	private splitTradesIntoTimeIntervals(trades: ITrade[], splitInterval: SplitTimeInterval = SplitTimeInterval.DAY): {date: Date, trades: ITrade[]}[] {
 		// create an initalized array of all the dates between start and end date of the backtest
 		let dateIntervals: {date: Date, trades: ITrade[]}[] = [];
-		let startDateHours =new Date(this.config.startDate);
+		let startDateHours =new Date(this.startDate);
 		startDateHours.setUTCMinutes(0, 0, 0);
 		let startDateMonth = new Date(startDateHours);
 		startDateMonth.setUTCDate(1);
 
-		let endDateHours: Date = new Date(this.config.endDate);
+		let endDateHours: Date = new Date(this.endDate);
 		endDateHours.setUTCMinutes(0, 0, 0);
-		let endDateMonths: Date = new Date(this.config.endDate);
+		let endDateMonths: Date = new Date(this.endDate);
 		endDateMonths.setUTCHours(0, 0, 0, 0);
 		endDateHours.setUTCHours(endDateHours.getUTCHours() + 1); 
 		endDateMonths.setUTCMonth(endDateMonths.getUTCMonth() + 1);
@@ -377,26 +378,15 @@ export class PerfReportHelper {
 		const month = 30.5;
 		const cumProf = this.cumulativeProfit(trades);
 		const oneDay = 1000 * 60 * 60 * 24;
-		const dataLength = (month / Math.round(Math.abs((this.config.startDate.getTime() - this.config.endDate.getTime()) / oneDay)));
+		const dataLength = (month / Math.round(Math.abs((this.startDate.getTime() - this.endDate.getTime()) / oneDay)));
 
 		this.perfReport.allTrades.profitPerMonth = cumProf.cumAll * dataLength;
 		this.perfReport.longTrades.profitPerMonth = cumProf.cumLong * dataLength;
 		this.perfReport.shortTrades.profitPerMonth = cumProf.cumShort * dataLength;
 	}
 
-	private getFeesForTrade(trade: ITrade): number {
-		// @todo -> maybe use real fees used by the exchange
-		const fees = this.exchange.markets[trade.symbol]['taker'];
-		// @todo -> finer calculation of fees look at ordertype and each take profit/stop
-		let allFees = 0;
-		if(this.config.includeComissions != undefined && this.config.includeComissions == true) {
-			allFees = fees * trade.initialSize * trade.firstEntry + fees * trade.initialSize * trade.exitPrice;
-		}
-		return allFees;
-	}
-
 	private calcLargestTrades(trade: ITrade) {
-		const allFees = this.getFeesForTrade(trade);
+		const allFees = getFeesForTrade(trade, this.exchange);
 		if(trade.tradeDirection == TradeDirection.BUY) {
 			const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
 			// only longs
@@ -440,7 +430,7 @@ export class PerfReportHelper {
 		let cumShort = 0;
 		const point = 1;
 		for(let trade of trades) {
-			const allFees = this.getFeesForTrade(trade);
+			const allFees = getFeesForTrade(trade, this.exchange);
 			if(trade.tradeDirection == TradeDirection.BUY) {
 				const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
 				cumAll += diff * trade.initialSize * point;	

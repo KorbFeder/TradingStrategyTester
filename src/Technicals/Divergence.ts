@@ -8,8 +8,9 @@ import { Candlestick } from "../Consts/Candlestick";
 import { PivotExtremes } from "./PivotExtremes";
 import { Renko, RenkoBrick } from "./Renko";
 import { SmoothRsi } from "./SmoothRsi";
+import { bottomOfCandle, topOfCandle } from "../helper";
 
-const PIVOT_LENGTH = 4;
+const PIVOT_LENGTH = 3;
 const RSI_LENGTH = 14;
 
 export class Divergence {
@@ -36,7 +37,7 @@ export class Divergence {
 		return this.hiddenDivergence(data, smoothRsi, 50, 50);
 	}
 
-	public static macd(data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
+	public static macd(data: OHLCV[]): {firstIndex: number, secondIndex: number, tradeDirection: TradeDirection} {
 		const macdInput: MACDInput = {
 			values: data.map((d) => d[Candlestick.CLOSE]),
 			fastPeriod: 12,
@@ -53,10 +54,10 @@ export class Divergence {
 			} else {
 				return -1;
 			}
-		}));
+		}), 0, 0, macdInput.slowPeriod);
 	}
 
-	public static rsi(data: OHLCV[]): {index: number, tradeDirection: TradeDirection} {
+	public static rsi(data: OHLCV[]): {firstIndex: number, secondIndex: number, tradeDirection: TradeDirection} {
 		const smoothRsi = SmoothRsi.calculate(data.map(data => data[Candlestick.CLOSE]), this.rsiLength);
 		return this.divergence(data, smoothRsi);
 	}
@@ -166,7 +167,7 @@ export class Divergence {
 	
 	}
 
-	public static divergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0, length: number = 14): {index: number, tradeDirection: TradeDirection} {
+	public static divergence(data: OHLCV[], osc: number[], oscMax: number = 0, oscMin: number = 0, length: number = 14): {firstIndex: number, secondIndex: number, tradeDirection: TradeDirection} {
 		const lookBackCandles = PIVOT_LENGTH * 2 + length;
 		const endOfOsc: number[] = osc.slice(osc.length - lookBackCandles, osc.length);
 		const endOfData: OHLCV[] = data.slice(data.length - lookBackCandles, data.length);
@@ -174,41 +175,43 @@ export class Divergence {
 		const highPivots = highs.slice(highs.length - lookBackCandles, highs.length);
 		const lowPivots = lows.slice(lows.length - lookBackCandles, lows.length);
 
-		for(let i = endOfData.length - 1; i >= 17; i--) {
-			if(highPivots[i]) {
-				// search for next high
-				let maxRsiRange = i - length;
-				if(maxRsiRange < 0) {
-					maxRsiRange = 0;
-				}
-				for(let u = i - 1; u >= maxRsiRange; u--) {
-					if(highPivots[u]) {
-						if(endOfData[i][Candlestick.HIGH] > endOfData[u][Candlestick.HIGH] && endOfOsc[i] < endOfOsc[u]) {
-							if(oscMax < endOfOsc[u]) {
-								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.SELL};
-							}
+		// confirmation candle lookback
+		const i = lookBackCandles - PIVOT_LENGTH - 1;
+		if(highPivots[i]) {
+			// search for next high
+			let maxLength = i - length;
+			if(maxLength < 0) {
+				maxLength = 0;
+			}
+			for(let u = i - 1; u >= maxLength; u--) {
+				if(highPivots[u]) {
+					if(topOfCandle(endOfData[i]) > topOfCandle(endOfData[u]) && endOfOsc[i] < endOfOsc[u]) {
+						// oscillator line has to be under the osc level and oscillator line shouldnt be below the last pivot point
+						if(oscMax < endOfOsc[u] && endOfOsc[i] > endOfOsc[endOfOsc.length-1]) {
+							return {firstIndex: data.length - (lookBackCandles - u), secondIndex: data.length - (lookBackCandles - i), tradeDirection: TradeDirection.SELL};
 						}
-					}
+					} 
 				}
 			}
+		}
 
-			if(lowPivots[i]) {
-				// search for next low
-				let maxRsiRange = i - length;
-				if(maxRsiRange < 0) {
-					maxRsiRange = 0;
-				}
-				for(let u = i - 1; u >= maxRsiRange; u--) {
-					if(lowPivots[u]) {
-						if(endOfData[i][Candlestick.LOW] < endOfData[u][Candlestick.LOW] && endOfOsc[i] > endOfOsc[u]) {
-							if(oscMin > endOfOsc[u]) {
-								return {index: data.length - 1 - (lookBackCandles - i), tradeDirection: TradeDirection.BUY};
-							}
+		if(lowPivots[i]) {
+			// search for next low
+			let maxRsiRange = i - length;
+			if(maxRsiRange < 0) {
+				maxRsiRange = 0;
+			}
+			for(let u = i - 1; u >= maxRsiRange; u--) {
+				if(lowPivots[u]) {
+					if(bottomOfCandle(endOfData[i]) < bottomOfCandle(endOfData[u]) && endOfOsc[i] > endOfOsc[u]) {
+						// oscillator line has to be under the osc level and oscillator line shouldnt be above the last pivot point
+						if(oscMin > endOfOsc[u] && endOfOsc[i] < endOfOsc[endOfOsc.length-1]) {
+							return {firstIndex: data.length - (lookBackCandles - u), secondIndex: data.length - (lookBackCandles - i), tradeDirection: TradeDirection.BUY};
 						}
 					}
 				}
 			}
 		}
-		return {index: 0, tradeDirection: TradeDirection.HOLD};
+		return {firstIndex: 0, secondIndex: 0, tradeDirection: TradeDirection.HOLD};
 	}
 }

@@ -1,7 +1,6 @@
 import { OHLCV } from "ccxt";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
-import { ChartData } from "./ChartData-model";
 import { IDataProvider } from "./DataProvider-interface";
 import { FuturePosition } from "./FuturePosition-interface";
 import { ManagePosition } from "./ManagePosition-interface";

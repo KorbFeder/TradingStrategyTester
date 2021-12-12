@@ -19,8 +19,8 @@ export interface SinglePerformanceReport {
 	rsquared: number;
 	probability: number;
 
-	startDate?: Date;
-	endDate?: Date;
+	startDate: Date;
+	endDate: Date;
 
 	percentProftiableTrades: number;
 	wins: number;

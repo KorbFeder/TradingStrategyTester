@@ -7,20 +7,15 @@ import { TradeDirection } from "../Consts/TradeDirection";
 import { DataCache } from "../Database/DataCache";
 import { closePositionBacktesting } from "../helpers/closePositionBacktesting";
 import { PerfReportHelper } from "../helpers/PerfReportHelper";
-import { ChartData } from "../Models/ChartData-model";
 import { PerformanceReport } from "../Models/PerformanceReport-model";
 import { IResultChecking } from "../Models/ResultChecking-interface";
-import { IStrategy } from "../Models/Strategy-interface";
 import { ITrade } from "../Models/TestAccount-model";
-import { BacktestConfig } from "../Models/TestingConfigs";
+import { BacktestConfig } from "../Models/TestingConfigs-inteface";
 import { HistoricDataProvider } from "./HistoricDataProvider";
 
 
 const MIN_BARS = 256;
-const DATA_LIMIT = 500;
 const BARS_REQ = 20;
-
-
 
 export class Backtesting {
 	private trades: ITrade[][] = [];
@@ -30,9 +25,13 @@ export class Backtesting {
 		private exchange: Exchange, 
 		private resultCheck: IResultChecking,
 	) {
+
 	}
 
 	async start(config: BacktestConfig): Promise<PerformanceReport[]> {
+		// since data retrieved from exchanges have millisecond cut, it is easier to compare if miliseconds are cut here too
+		config.startDate = new Date(config.startDate.getTime() - config.startDate.getTime() % timeToNumber(config.timeframe));
+		config.endDate = new Date(config.endDate.getTime() - config.endDate.getTime() % timeToNumber(config.timeframe)); 
 		this.trades = [];
 
 		const minBarsForIndicator: number = config.minBarsForIndicator ? config.minBarsForIndicator : MIN_BARS;
@@ -71,7 +70,7 @@ export class Backtesting {
 
 		const perfReports: PerformanceReport[] = [];
 		for(let strategy_trades of this.trades) {
-			const perfReportHelper = new PerfReportHelper(this.exchange, config);
+			const perfReportHelper = new PerfReportHelper(this.exchange, config.startDate, config.endDate);
 			perfReports.push(await perfReportHelper.addToPerfRep(strategy_trades));
 		}
 		return perfReports;

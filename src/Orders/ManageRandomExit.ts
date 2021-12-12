@@ -3,13 +3,12 @@ import { random } from "lodash";
 import { Candlestick } from "../Consts/Candlestick";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { FuturePosition } from "../Models/FuturePosition-interface";
-import { ManagementType, ManagePosition } from "../Models/ManagePosition-interface";
+import { ManagePosition } from "../Models/ManagePosition-interface";
 import { ITrade } from "../Models/TestAccount-model";
 
 export class ManageRandomExit implements ManagePosition {
 	private currentBar = 0;
 	private exitOnBar = 0;
-	public supportedManagementTypes: ManagementType[] = [ManagementType.ENTRY_TESTING];
 
 	constructor() {}
 

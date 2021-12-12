@@ -2,7 +2,6 @@ import { OHLCV } from "ccxt";
 import { Candlestick } from "../../Consts/Candlestick";
 import { Timeframe } from "../../Consts/Timeframe";
 import { TradeDirection } from "../../Consts/TradeDirection";
-import { ChartData } from "../../Models/ChartData-model";
 import { IDataProvider } from "../../Models/DataProvider-interface";
 import { FuturePosition } from "../../Models/FuturePosition-interface";
 import { ManagePosition } from "../../Models/ManagePosition-interface";
@@ -66,6 +65,5 @@ export class NormalCheck implements IResultChecking {
 				return [result];
 			}
 		}
-		
 	}
 }

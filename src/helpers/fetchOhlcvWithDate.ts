@@ -2,7 +2,10 @@ import { Exchange, OHLCV } from "ccxt";
 import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe, timeToNumber } from "../Consts/Timeframe";
 
-export async function fetchOhlcvWithDate(exchange: Exchange, symbol: string, timeframe: Timeframe, startDate: Date, endDate: Date): Promise<OHLCV[]> {
+export async function fetchOhlcvWithDate(exchange: Exchange, symbol: string, timeframe: Timeframe, _startDate: Date, _endDate: Date): Promise<OHLCV[]> {
+	const startDate = new Date(_startDate.getTime() - _startDate.getTime() % timeToNumber(timeframe));
+	const endDate = new Date(_endDate.getTime() - _endDate.getTime() % timeToNumber(timeframe)); 
+	
 	if(startDate.getTime() >= endDate.getTime()) {
 		throw 'startTime (' + startDate + ') should not be bigger or equal than endTime (' + endDate + ')';
 	}

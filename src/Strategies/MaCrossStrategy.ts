@@ -6,7 +6,6 @@ import { Candlestick } from "../Consts/Candlestick";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { CrossUpside } from "../helper";
-import { ChartData } from "../Models/ChartData-model";
 import { IDataProvider } from "../Models/DataProvider-interface";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
 import { LimitOrder } from "../Models/FuturePosition-interface";
@@ -70,9 +69,9 @@ export class MaCrossStrategy implements IStrategy {
     getParams(): OptimizationParameters[] {
         return [
             //fastMa
-            {startValue: 10, endValue: 30, stepValue: 2},
+            {startValue: 10, endValue: 30, stepValue: 5},
             // slowMa
-            {startValue: 25, endValue: 100, stepValue: 5},
+            {startValue: 20, endValue: 100, stepValue: 10},
         ]
     }
 

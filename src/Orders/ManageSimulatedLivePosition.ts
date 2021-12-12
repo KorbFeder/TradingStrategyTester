@@ -5,7 +5,7 @@ import { calcBreakEvenPrice, FuturePosition } from "../Models/FuturePosition-int
 import { ManagePosition } from "../Models/ManagePosition-interface";
 import { ITrade } from "../Models/TestAccount-model";
 
-export class ManageDefaultPosition implements ManagePosition {
+export class ManageSimulatedLivePosition implements ManagePosition {
 	private target_index: number = 0;
 	private stop_index: number = 0;
 	
@@ -14,7 +14,7 @@ export class ManageDefaultPosition implements ManagePosition {
 		let avgFill: number = position.breakEvenPrice;
 		let lastSize: number = position.amount;
 		if(position.tradeDirection == TradeDirection.BUY) {
-			if(dataPoint[Candlestick.LOW] < position.stopLosses[this.stop_index].price) {
+			if(dataPoint[Candlestick.CLOSE] < position.stopLosses[this.stop_index].price) {
 				position.breakEvenPrice = calcBreakEvenPrice({price: position.breakEvenPrice, amount: position.amount}, position.stopLosses[this.stop_index]);
 				position.amount -= position.stopLosses[this.stop_index].amount;
 				if(position.amount > 0 && position.breakEvenPrice > 0) {
@@ -34,7 +34,7 @@ export class ManageDefaultPosition implements ManagePosition {
 						firstEntry: position.price,
 					};
 				}
-			} else if(dataPoint[Candlestick.HIGH] > position.profitTargets[this.target_index].price) {
+			} else if(dataPoint[Candlestick.CLOSE] > position.profitTargets[this.target_index].price) {
 				position.breakEvenPrice = calcBreakEvenPrice({price: position.breakEvenPrice, amount: position.amount}, position.profitTargets[this.target_index]);
 				position.amount -= position.profitTargets[this.target_index].amount;
 				if(position.amount > 0 && position.breakEvenPrice > 0) {
@@ -56,7 +56,7 @@ export class ManageDefaultPosition implements ManagePosition {
 				}
 			}
 		} else if(position.tradeDirection == TradeDirection.SELL) {
-			if(dataPoint[Candlestick.HIGH] > position.stopLosses[this.stop_index].price) {
+			if(dataPoint[Candlestick.CLOSE] > position.stopLosses[this.stop_index].price) {
 				position.breakEvenPrice = calcBreakEvenPrice({price: position.breakEvenPrice, amount: position.amount}, position.stopLosses[this.stop_index]);
 				position.amount -= position.stopLosses[this.stop_index].amount;
 				if(position.amount > 0 && position.breakEvenPrice > 0) {
@@ -76,7 +76,7 @@ export class ManageDefaultPosition implements ManagePosition {
 						symbol: position.symbol
 					};
 				}
-			} else if(dataPoint[Candlestick.LOW] < position.profitTargets[this.target_index].price) {
+			} else if(dataPoint[Candlestick.CLOSE] < position.profitTargets[this.target_index].price) {
 				position.breakEvenPrice = calcBreakEvenPrice({price: position.breakEvenPrice, amount: position.amount}, position.profitTargets[this.target_index]);
 				position.amount -= position.profitTargets[this.target_index].amount;
 				if(position.amount > 0 && position.breakEvenPrice > 0) {

@@ -1,6 +1,6 @@
 import * as ccxt from "ccxt";
 import { config } from "dotenv";
-import { Lowest, mfi, RSI } from "technicalindicators";
+import { Lowest, macd, mfi, RSI } from "technicalindicators";
 import { calcStartingTimestamp, Timeframe, timeToNumber } from "./Consts/Timeframe";
 import { TradeDirection } from "./Consts/TradeDirection";
 import { Database } from "./Database/Database";
@@ -10,7 +10,7 @@ import { PivotExtremes } from "./Technicals/PivotExtremes";
 import { MaCrossStrategy } from "./Strategies/MaCrossStrategy";
 import { Renko } from "./Technicals/Renko";
 import { KeySRLevels } from "./Technicals/KeySRLevels";
-import { getMarketSymbols } from "./helper";
+import { getFirstTimestamp, getMarketSymbols } from "./helper";
 import { Trend } from "./Consts/Trend";
 import { MarketTrend } from "./Technicals/MarketTrend";
 import { Orders } from "./Orders/Orders";
@@ -40,15 +40,19 @@ import { HurstExponent } from "./Technicals/MarketStructure/HurstExponent";
 import { Backtesting } from "./Testing/Backtesting";
 import { ATR } from "./Technicals/ATR";
 import { ManageDefaultPosition } from "./Orders/ManageDefaultPosition";
-import { ManagementType } from "./Models/ManagePosition-interface";
 import { SMAnt } from "./Technicals/SMAnt";
 import { ManageFixedBarExit } from "./Orders/ManageFixedBarExit";
 import { NormalCheck } from "./Testing/ResultChecking/NormalCheck";
 import { DataCache } from "./Database/DataCache";
 import { BybitTrades } from "./Testing/HistoricTrades/BybitTrades";
 import { Optimizing } from "./Testing/Optimizing";
-import { BacktestConfig, OptimizationConfig, WalkForwardConfig } from "./Models/TestingConfigs";
+import { BacktestConfig, OptimizationConfig, WalkForwardConfig } from "./Models/TestingConfigs-inteface";
 import { WalkForwardAnalysis } from "./Testing/WalkForwardAnalysis";
+import { LiveTrading } from "./Testing/LiveTrading";
+import { TestingOrderExecution } from "./Testing/TestingOrderExecution";
+import { TestingPipeline } from "./Testing/TestingPipeline";
+import { MtfMacdStrategy } from "./Strategies/mtfMacdStrategy";
+import { ConvertToHigherTimeframe } from "./helpers/ConvertToHigherTimeframe";
 
 const db: Database = new Database()
 
@@ -79,29 +83,47 @@ const coinbase = new ccxt.coinbasepro({
 //apiServer.startServer();
 
 async function run(runningInstance: number = 0) {
-    //const data = await coinbase.fetchOHLCV('BTC/USD', Timeframe.h1, new Date(Date.UTC(2021, 10, 4)).getTime(), 143);
-    //const result = ATR.calcNt(data, 14);
-
     await db.connect(runningInstance);
-    const bybit: BybitTrades = new BybitTrades();
+
+    //const offline = new TestingOrderExecution(db, 'offline simpleMa', 100000, exchange, true);
+    //const live = new LiveTrading(exchange, offline, new Date(Date.UTC(2021, 11, 5, 19)));
+    //const perfRep = await live.start({strategy: new MaCrossStrategy('BTC/USD', Timeframe.m1 ,11, 25), symbol: 'BTC/USD', timeframe: Timeframe.m1});
+    //console.log(perfRep);
+    const timeframe = Timeframe.h4;
+    const startDate = await getFirstTimestamp(exchange);
+
+//    const backtestConfig: BacktestConfig = {
+//        startDate: new Date(Date.UTC(2021, 5, 1)),
+//        endDate: new Date(),
+//        symbol: 'BTC-PERP',
+//        timeframe,
+//        strategies: [new MtfMacdStrategy('BTC-PERP')],
+//        includeComissions: false,
+//    }
+//    const backtest = new Backtesting(exchange, new NormalCheck());
+//    const result = await backtest.start(backtestConfig);
+//    console.log(result);
+
+    //const bybit: BybitTrades = new BybitTrades();
 
     const config: WalkForwardConfig = {
-        startDate: new Date(Date.UTC(2021, 0, 1)),
-        endDate: new Date(Date.UTC(2021, 0, 31)),
+        startDate: startDate ? startDate : new Date(Date.UTC(2020, 0, 1)),
+        endDate: new Date(),
         symbol: 'BTC/USD',
-        timeframe: Timeframe.m15,
-        strategy: new MaCrossStrategy('BTC/USD', Timeframe.m15 ,11, 25),
+        timeframe,
+        strategy: new MaCrossStrategy('BTC/USD', timeframe ,11, 25),
         includeComissions: false,
         optimizationFunction: 'profitFactor',
-        //useNeighbours: 1,
+        useNeighbours: 1,
+        minTradesDone: 50,
         numOfStages: 6,
         backtestToOptRatio: 0.25 
     };
 
-
-    const walkforward = new WalkForwardAnalysis(coinbase, new NormalCheck());
-    const walk = await walkforward.start(config)
-    console.log(walk);
+    
+    //const walkforward = new WalkForwardAnalysis(coinbase, new NormalCheck());
+    //const walk = await walkforward.start(config)
+    //console.log(walk);
     //const backtest = new Backtesting(coinbase, new NormalCheck());
     //const topParams = await backtest.start(config);
     //const optimization = new Optimizing(exchange, new NormalCheck());
@@ -109,9 +131,9 @@ async function run(runningInstance: number = 0) {
     //console.log(topParams);
     //const backtest = new Backtesting(exchange, new NormalCheck());
     //const d = await backtest.start(config);
-    //const pipeline = new TestingPipeline(coinbase);
-    //const results = await pipeline.start(config, new NormalCheck());
-    //console.log(results);
+    const pipeline = new TestingPipeline(exchange, new NormalCheck(), db);
+    const results = await pipeline.start(config);
+    console.log(results);
     //const perf = await backtest.start(config);
     //console.log(perf);
     

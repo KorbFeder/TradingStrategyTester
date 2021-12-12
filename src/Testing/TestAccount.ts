@@ -1,15 +1,20 @@
+import { Exchange } from "ccxt";
 import { TradeDirection } from "../Consts/TradeDirection";
 import { Database } from "../Database/Database";
+import { getFeesForTrade } from "../helpers/getFeesForTrade";
 import { LimitOrder } from "../Models/FuturePosition-interface";
 import { ITestAccount, ITrade } from "../Models/TestAccount-model";
 import { PositionSize } from "../Orders/PositionSize";
-import { StopLoss } from "../Orders/StopLoss";
 
 const ACCOUNT_PERCENTAGE: number = 0.1;
 
 export class TestAccount {
 
-	constructor(private db: Database, private testAccountName: string, private startingBalance: number) {
+	constructor(
+        private db: Database, 
+        private testAccountName: string, 
+        private startingBalance: number,
+    ) {
 	}
 
     private async create() {
@@ -29,25 +34,45 @@ export class TestAccount {
         return account[0];
     }
 
+    public async getBalance(): Promise<number> {
+        await this.create();
+        const testAccount: ITestAccount = await this.get();
+        return testAccount.balance;
+ 
+    }
+
+    public async getTrades(symbol: string): Promise<ITrade[]> {
+        await this.create();
+        const testAccount: ITestAccount = await this.get();
+        return testAccount.trades.filter(trade => trade.symbol == symbol);       
+    }
+
     public async calculatePositionSize(stopLoss: LimitOrder[], entry: number) {
         await this.create();
         const account: ITestAccount = await this.get();
         return PositionSize.calculate(account.balance, entry, stopLoss);
     }
-
-    public async update(trade: ITrade): Promise<ITestAccount> {
+    
+    public async update(trade: ITrade, exchange: Exchange, fees: boolean): Promise<ITestAccount> {
         await this.create();
         const account: ITestAccount = await this.get();
+        let allFees = 0;
+        if(fees) {
+            allFees = getFeesForTrade(trade, exchange);
+        }
 		
 		const balanceBefore = account.balance;
 
-        // risk 10 percent of account as collateral
         if(trade.tradeDirection == TradeDirection.BUY) {
-            const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize;
+            const diff = trade.exitPrice * trade.lastSize - trade.breakEvenPrice * trade.lastSize - allFees;
             account.balance += diff;
         } else if(trade.tradeDirection == TradeDirection.SELL) {
-            const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize;
+            const diff = trade.breakEvenPrice * trade.lastSize - trade.exitPrice * trade.lastSize - allFees;
             account.balance += diff;
+        }
+
+        if(account.balance <= 0) {
+            throw "liquidated account balance dropped below 0, balance: " + account.balance;
         }
 
         account.percentageGain.push((trade.initialSize * trade.firstEntry + (account.balance - balanceBefore)) / (trade.initialSize * trade.firstEntry));
@@ -76,6 +101,7 @@ export class TestAccount {
                 loses++;
             }
         }
+
         console.log('traded on symbol with count:', symbolCount);
         //console.log('trades:', testAccount.trades);
         console.log('percentageDiff:', testAccount.percentageGain.map(percentage => (percentage - 1).toFixed(4)));

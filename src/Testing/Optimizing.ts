@@ -3,14 +3,14 @@ import { cloneDeep, range, result } from "lodash";
 import { reporters } from "mocha";
 import { userInfo } from "os";
 import { report } from "process";
-import { Timeframe } from "../Consts/Timeframe";
+import { Timeframe, timeToNumber } from "../Consts/Timeframe";
 import { DataCache } from "../Database/DataCache";
 import { PerfReportHelper } from "../helpers/PerfReportHelper";
 import { HistoricTradesFetcher} from "../Models/HistoricTradesFetcher-interface";
 import { PerformanceReport, SinglePerformanceReport } from "../Models/PerformanceReport-model";
 import { IResultChecking } from "../Models/ResultChecking-interface";
 import { IStrategy } from "../Models/Strategy-interface";
-import { BacktestConfig, OptimizationConfig } from "../Models/TestingConfigs";
+import { BacktestConfig, OptimizationConfig } from "../Models/TestingConfigs-inteface";
 import { Backtesting } from "./Backtesting";
 
 export interface OptimizationParameters {
@@ -38,6 +38,10 @@ export class Optimizing {
 
 	async start(config: OptimizationConfig): Promise<OptimizationResult> {
 		const backtest = new Backtesting(this.exchange, this.resultCheck);
+
+		config.startDate = new Date(config.startDate.getTime() - config.startDate.getTime() % timeToNumber(config.timeframe));
+		config.endDate = new Date(config.endDate.getTime() - config.endDate.getTime() % timeToNumber(config.timeframe)); 
+
 
 		const optimizationParams = config.strategy.getParams();
 		if(optimizationParams.length < 1) {
@@ -87,6 +91,11 @@ export class Optimizing {
 	}
 
 	private sortBestResults(config: OptimizationConfig, reports: IndividualPerfResult[]): IndividualPerfResult[] {
+		// if a minimum required trade count is specified, check if enough trades where done
+		if(config.minTradesDone) {
+			const minTrades: number = config.minTradesDone;
+			reports = reports.filter(report => report.result.allTrades.trades.length > minTrades)
+		}
 		if(config.useNeighbours) {
 			const distance = config.useNeighbours;
 			const reportsWithAvgNigh: {avgProfit: number, individualPerfReslut: IndividualPerfResult}[] = [];

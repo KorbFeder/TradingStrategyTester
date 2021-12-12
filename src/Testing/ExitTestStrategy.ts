@@ -3,7 +3,6 @@ import { waitForDebugger } from "inspector";
 import { random } from "lodash";
 import { Timeframe } from "../Consts/Timeframe";
 import { TradeDirection } from "../Consts/TradeDirection";
-import { ChartData } from "../Models/ChartData-model";
 import { IDataProvider } from "../Models/DataProvider-interface";
 import { IDynamicExit } from "../Models/DynamicExit-interface";
 import { LimitOrder } from "../Models/FuturePosition-interface";
